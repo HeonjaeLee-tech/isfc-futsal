@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ISFC 20주년 풋살대회</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="ISFC 20주년 OBYB 풋살대회 · 2026년 10월 31일(토) 한양대 ERICA 풋살장. 주차 안내, 실시간 경기 현황, 득점왕, 팀 정보, 뒤풀이 공지.">
+<meta property="og:title" content="ISFC 20주년 OBYB 풋살대회">
+<meta property="og:description" content="10.31 토 · 한양대 ERICA 풋살장 · 주차 안내와 실시간 경기 현황">
+<meta property="og:image" content="assets/img/keyvisual.jpg">
+<meta name="theme-color" content="#741243">
+<link rel="icon" type="image/png" href="assets/img/emblem.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<script src="assets/js/icons.js"></script>
+
+<div class="brandbar">
+  <a class="brand" href="#info" data-tab="info" aria-label="ISFC 20주년 풋살대회 처음으로">
+    <img src="assets/img/emblem.png" alt="" width="34" height="35">
+    <span class="brand-word">ISFC</span>
+    <span class="brand-sub">20th Anniversary</span>
+  </a>
+  <button class="sync" id="sync" type="button" aria-live="polite">
+    <span class="sync-dot" aria-hidden="true"></span>
+    <span class="sync-text" id="syncText">불러오는 중</span>
+  </button>
+</div>
+
+<div class="stick" id="stick">
+  <button class="ticker" id="ticker" type="button" aria-label="공지 전체 보기">
+    <svg class="i ticker-icon"><use href="#i-megaphone-fill"></use></svg>
+    <span class="ticker-tag" id="tickerTag">공지</span>
+    <span class="ticker-window"><span class="ticker-text" id="tickerText">공지를 불러오는 중이에요</span></span>
+    <svg class="i ticker-more"><use href="#i-caret-right"></use></svg>
+  </button>
+  <nav class="tabs" aria-label="페이지">
+    <div class="tabs-track" role="tablist">
+      <a role="tab" href="#info" data-tab="info"><svg class="i"><use href="#i-map-pin"></use></svg>안내</a>
+      <a role="tab" href="#match" data-tab="match"><svg class="i"><use href="#i-soccer-ball"></use></svg>경기</a>
+      <a role="tab" href="#scorers" data-tab="scorers"><svg class="i"><use href="#i-trophy"></use></svg>득점왕</a>
+      <a role="tab" href="#teams" data-tab="teams"><svg class="i"><use href="#i-users-three"></use></svg>팀</a>
+      <a role="tab" href="#goods" data-tab="goods"><svg class="i"><use href="#i-gift"></use></svg>기념품</a>
+      <a role="tab" href="#food" data-tab="food"><svg class="i"><use href="#i-fork-knife"></use></svg>안주</a>
+      <a role="tab" href="#party" data-tab="party"><svg class="i"><use href="#i-beer-stein"></use></svg>뒤풀이</a>
+    </div>
+  </nav>
+</div>
+
+<main id="main">
+
+  <!-- ───────────── 안내 ───────────── -->
+  <section class="view" id="view-info" data-view="info">
+    <div class="hero">
+      <img class="hero-kv" src="assets/img/keyvisual.jpg" alt="ISFC 엠블럼과 20th Anniversary of Foundation 문구가 담긴 20주년 키비주얼" width="1400" height="1400">
+      <div class="hero-card wrap">
+        <img class="hero-mascot" src="assets/img/hanyangi.png" alt="" width="172" height="190">
+        <div class="frame">
+          <div class="frame-in">
+            <p class="hero-kicker">ISFC 20주년</p>
+            <h1 class="hero-title">OBYB 풋살대회</h1>
+            <p class="hero-dday" id="heroDday">10월 31일 토요일</p>
+            <dl class="hero-facts">
+              <div><dt>1부 풋살</dt><dd>14:00 ~ 18:00</dd></div>
+              <div><dt>2부 뒤풀이</dt><dd>19:30 ~</dd></div>
+              <div><dt>장소</dt><dd>한양대 ERICA 풋살장 <span class="muted nowrap">(테니스장 옆)</span></dd></div>
+            </dl>
+            <div class="hero-live" id="heroLive" hidden></div>
+            <div class="hero-cta">
+              <a class="btn btn-primary" href="#parking" data-scroll="parking"><svg class="i"><use href="#i-car-fill"></use></svg>주차 안내</a>
+              <a class="btn btn-ghost" href="#match" data-tab="match"><svg class="i"><use href="#i-soccer-ball"></use></svg>경기 현황</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-note wrap" id="demoNote" hidden>
+      <svg class="i"><use href="#i-info"></use></svg>
+      <p>지금 보이는 경기, 팀, 공지는 화면 확인용 <b>샘플</b>이에요. 구글 시트를 연결하면 실제 내용으로 바뀌어요.</p>
+    </div>
+
+    <!-- 주차 -->
+    <section class="block wrap" id="parking" aria-labelledby="parkingTitle">
+      <h2 class="h2" id="parkingTitle">주차 안내</h2>
+      <p class="lead">2026년 9월부터 ERICA 캠퍼스 주차장은 <b>모든 차량 유료</b>예요. 편한 쪽을 골라주세요.</p>
+
+      <div class="seg" role="tablist" aria-label="주차 방법">
+        <button type="button" role="tab" id="segIn" aria-selected="true" aria-controls="parkIn" data-park="in">
+          <span class="seg-main">교내 주차</span><span class="seg-sub">유료 · 풋살장 가까움</span>
+        </button>
+        <button type="button" role="tab" id="segOut" aria-selected="false" aria-controls="parkOut" data-park="out">
+          <span class="seg-main">교외 주차</span><span class="seg-sub">무료 · 도보 6~11분</span>
+        </button>
+      </div>
+
+      <!-- 교내 -->
+      <div class="park" id="parkIn" role="tabpanel" aria-labelledby="segIn">
+        <figure class="map">
+          <button class="map-zoom" type="button" data-zoom="assets/img/map-campus.jpg" aria-label="지도 크게 보기">
+            <img src="assets/img/map-campus.jpg" alt="ERICA 캠퍼스 위성지도. 학술정보관 옆 주차장과 대운동장 옆 풋살장에 원 표시" width="1924" height="1456" loading="lazy">
+            <span class="pin pin-p" style="left:62.5%;top:33%">P</span>
+            <span class="pin pin-goal" style="left:53.6%;top:57.6%"><svg class="i"><use href="#i-soccer-ball-fill"></use></svg></span>
+            <span class="map-hint"><svg class="i"><use href="#i-magnifying-glass-plus"></use></svg>크게</span>
+          </button>
+          <figcaption class="legend">
+            <span><i class="pin pin-p sm">P</i>추천 주차장 · 학술정보관(401동) 옆</span>
+            <span><i class="pin pin-goal sm"><svg class="i"><use href="#i-soccer-ball-fill"></use></svg></i>행사장 · 풋살장</span>
+          </figcaption>
+        </figure>
+
+        <div class="facts">
+          <div class="fact">
+            <svg class="i"><use href="#i-person-simple-walk"></use></svg>
+            <p><b>주차장에서 풋살장까지 걸어서 4~8분</b><br><span class="muted">학술정보관 건물 앞 기준 542m, 8분 (카카오맵 도보)</span></p>
+          </div>
+          <div class="fact">
+            <svg class="i"><use href="#i-receipt"></use></svg>
+            <p><b>나갈 때 출구 무인정산기에서 카드 결제</b><br><span class="muted">토요일에도 24시간 운영</span></p>
+          </div>
+        </div>
+
+        <div class="fee">
+          <h3 class="h3">주차 요금</h3>
+          <ul class="fee-rules">
+            <li><span>15분 미만</span><b>무료</b><em>들어온 게이트로 나갈 때만</em></li>
+            <li><span>30분 미만</span><b>1,500원</b><em>기본요금</em></li>
+            <li><span>30분부터</span><b>10분당 500원</b><em>1시간에 3,000원꼴</em></li>
+            <li><span>하루 최대</span><b>24,000원</b><em>8시간 넘으면 더 안 올라가요</em></li>
+          </ul>
+
+          <div class="calc" id="calc">
+            <div class="calc-presets" role="group" aria-label="많이 쓰는 시간">
+              <button type="button" class="chip" data-preset="13:30,18:00">풋살만 13:30~18:00</button>
+              <button type="button" class="chip" data-preset="13:30,18:30">정리까지 ~18:30</button>
+              <button type="button" class="chip" data-preset="13:30,23:00">뒤풀이까지 두면</button>
+            </div>
+            <div class="calc-row">
+              <label for="calcIn">들어온 시간<input id="calcIn" type="time" value="13:30" step="600"></label>
+              <svg class="i calc-arrow"><use href="#i-arrow-right"></use></svg>
+              <label for="calcOut">나가는 시간<input id="calcOut" type="time" value="18:30" step="600"></label>
+            </div>
+            <output class="calc-out" id="calcResult" for="calcIn calcOut" aria-live="polite">
+              <span class="calc-dur" id="calcDur">5시간 주차</span>
+              <span class="calc-fee" id="calcFee">15,000<small>원</small></span>
+            </output>
+          </div>
+          <p class="fine">요금 출처: 한양대학교 스마트주차시스템 ERICA 주차안내 (10월 25일 확인). 학교 사정에 따라 바뀔 수 있어요.</p>
+        </div>
+      </div>
+
+      <!-- 교외 -->
+      <div class="park" id="parkOut" role="tabpanel" aria-labelledby="segOut" hidden>
+        <figure class="map">
+          <button class="map-zoom" type="button" data-zoom="assets/img/map-outside.jpg" aria-label="지도 크게 보기">
+            <img src="assets/img/map-outside.jpg" alt="캠퍼스 남서쪽 위성지도. 카카오 데이터센터와 경기테크노파크 쪽 도로, 출입 차단기, 풋살장에 표시" width="1924" height="1456" loading="lazy">
+            <span class="pin pin-num" style="left:34%;top:80%">1</span>
+            <span class="pin pin-num pin-warn" style="left:53.8%;top:64.6%">2</span>
+            <span class="pin pin-goal" style="left:73.1%;top:40.4%"><svg class="i"><use href="#i-soccer-ball-fill"></use></svg></span>
+            <span class="map-hint"><svg class="i"><use href="#i-magnifying-glass-plus"></use></svg>크게</span>
+          </button>
+          <figcaption class="legend">
+            <span><i class="pin pin-num sm">1</i>무료로 세울 곳 · 카카오 데이터센터, 경기테크노파크 쪽</span>
+            <span><i class="pin pin-num pin-warn sm">2</i>차단기 · 여기서부터 차량은 유료</span>
+            <span><i class="pin pin-goal sm"><svg class="i"><use href="#i-soccer-ball-fill"></use></svg></i>행사장 · 풋살장</span>
+          </figcaption>
+        </figure>
+
+        <ol class="walk">
+          <li>
+            <span class="walk-from">카카오 데이터센터 안산</span>
+            <span class="walk-time"><b>6분</b> 431m</span>
+          </li>
+          <li>
+            <span class="walk-from">경기테크노파크</span>
+            <span class="walk-time"><b>11분</b> 725m</span>
+          </li>
+        </ol>
+        <p class="fine">풋살장(테니스장 옆)까지 카카오맵 도보 길찾기 기준</p>
+
+        <div class="callout">
+          <svg class="i"><use href="#i-barricade"></use></svg>
+          <p><b>차단기 안으로 차를 몰고 들어오면 그때부터 요금이 붙어요.</b> 밖에 세우고 차단기 옆으로 걸어 들어오세요. 주정차 금지 구역은 피해주세요.</p>
+        </div>
+
+        <div class="links">
+          <a class="btn btn-ghost" href="https://map.kakao.com/link/search/카카오데이터센터 안산" target="_blank" rel="noopener"><svg class="i"><use href="#i-navigation-arrow"></use></svg>카카오 데이터센터 지도</a>
+          <a class="btn btn-ghost" href="https://map.kakao.com/link/search/한양대학교 ERICA캠퍼스 테니스장" target="_blank" rel="noopener"><svg class="i"><use href="#i-map-pin"></use></svg>풋살장 위치</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 오늘의 흐름 -->
+    <section class="block wrap" aria-labelledby="flowTitle">
+      <h2 class="h2" id="flowTitle">10월 31일 흐름</h2>
+      <ol class="flow" id="flow"></ol>
+    </section>
+
+    <!-- 상금 -->
+    <section class="block wrap" aria-labelledby="prizeTitle">
+      <h2 class="h2" id="prizeTitle">상금 105만원</h2>
+      <div class="prize">
+        <div class="prize-1"><svg class="i"><use href="#i-trophy-fill"></use></svg><span>1등</span><b>50<small>만원</small></b></div>
+        <div><span>2등</span><b>30<small>만원</small></b></div>
+        <div><span>3등</span><b>20<small>만원</small></b></div>
+        <div><span>득점왕</span><b>5<small>만원</small></b></div>
+      </div>
+      <a class="gift-teaser" href="#goods" data-tab="goods">
+        <img src="assets/img/tumbler.jpg" alt="ISFC 20th ANNYV. 엠블럼이 인쇄된 흰색 머그 텀블러" width="900" height="1200" loading="lazy">
+        <p><b>참가자 전원 20주년 텀블러 + 하냥이 키링</b><span>풋살이나 뒤풀이 중 하나만 와도 받아요. 200개 한정</span></p>
+        <svg class="i"><use href="#i-caret-right"></use></svg>
+      </a>
+    </section>
+
+    <section class="block wrap" aria-labelledby="noticeTitle">
+      <div class="h2-row">
+        <h2 class="h2" id="noticeTitle">공지</h2>
+        <button type="button" class="link-btn" data-open="notices">전체 보기</button>
+      </div>
+      <ul class="notices" id="noticeList"></ul>
+    </section>
+  </section>
+
+  <!-- ───────────── 경기 ───────────── -->
+  <section class="view" id="view-match" data-view="match" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">지금 경기장</h2>
+      <div class="board" id="board"></div>
+
+      <div class="subtabs" role="tablist" aria-label="경기 정보">
+        <button type="button" role="tab" data-sub="schedule" aria-selected="true">일정</button>
+        <button type="button" role="tab" data-sub="table" aria-selected="false">순위</button>
+        <button type="button" role="tab" data-sub="bracket" aria-selected="false">대진표</button>
+        <button type="button" role="tab" data-sub="rules" aria-selected="false">진행 방식</button>
+      </div>
+
+      <div class="sub" data-subview="schedule">
+        <div class="filters" id="filters"></div>
+        <div id="schedule"></div>
+      </div>
+      <div class="sub" data-subview="table" hidden><div id="standings"></div></div>
+      <div class="sub" data-subview="bracket" hidden><div id="bracket"></div></div>
+      <div class="sub" data-subview="rules" hidden><div id="rules"></div></div>
+    </div>
+  </section>
+
+  <!-- ───────────── 득점왕 ───────────── -->
+  <section class="view" id="view-scorers" data-view="scorers" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">득점왕 레이스</h2>
+      <p class="lead">득점왕 상금 5만원. 자책골은 빼고 세요.</p>
+      <div id="scorers"></div>
+    </div>
+  </section>
+
+  <!-- ───────────── 팀 ───────────── -->
+  <section class="view" id="view-teams" data-view="teams" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">팀 정보</h2>
+      <div id="teams"></div>
+    </div>
+  </section>
+
+  <!-- ───────────── 기념품 ───────────── -->
+  <section class="view" id="view-goods" data-view="goods" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">20주년 기념품</h2>
+      <p class="lead">풋살이나 뒤풀이 중 하나만 참여해도 한 분께 하나씩 드려요. 200개 한정이에요.</p>
+      <div id="goods"></div>
+    </div>
+  </section>
+
+  <!-- ───────────── 안주 ───────────── -->
+  <section class="view" id="view-food" data-view="food" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">뒤풀이 안주</h2>
+      <div id="food"></div>
+    </div>
+  </section>
+
+  <!-- ───────────── 뒤풀이 ───────────── -->
+  <section class="view" id="view-party" data-view="party" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">2부 뒤풀이</h2>
+      <div id="party"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="stars" aria-hidden="true">
+      <svg class="i"><use href="#i-star-fill"></use></svg><svg class="i"><use href="#i-star-fill"></use></svg><svg class="i"><use href="#i-star-fill"></use></svg><svg class="i"><use href="#i-star-fill"></use></svg><svg class="i"><use href="#i-star-fill"></use></svg>
+    </div>
+    <p class="foot-title">ISFC OBYB<br>20th anniversary of foundation</p>
+    <a class="foot-insta" href="https://www.instagram.com/hyu_isfc/" target="_blank" rel="noopener"><svg class="i"><use href="#i-instagram-logo"></use></svg>@hyu_isfc</a>
+  </div>
+</footer>
+
+<!-- 공지 전체 -->
+<div class="sheet" id="noticeSheet" hidden>
+  <div class="sheet-scrim" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-head">
+      <h2 class="h3" id="sheetTitle">공지 전체</h2>
+      <button type="button" class="icon-btn" data-close aria-label="닫기"><svg class="i"><use href="#i-x"></use></svg></button>
+    </div>
+    <ul class="notices" id="noticeAll"></ul>
+  </div>
+</div>
+
+<!-- 지도 크게 보기 -->
+<div class="zoom" id="zoom" hidden>
+  <button type="button" class="icon-btn zoom-close" data-close aria-label="닫기"><svg class="i"><use href="#i-x"></use></svg></button>
+  <div class="zoom-scroll"><img id="zoomImg" src="" alt="지도 크게 보기"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/demo.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
