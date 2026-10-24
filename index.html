@@ -32,12 +32,15 @@
 </div>
 
 <div class="stick" id="stick">
+  <div class="stick-top">
   <button class="ticker" id="ticker" type="button" aria-label="공지 전체 보기">
     <svg class="i ticker-icon"><use href="#i-megaphone-fill"></use></svg>
     <span class="ticker-tag" id="tickerTag">공지</span>
     <span class="ticker-window"><span class="ticker-text" id="tickerText">공지를 불러오는 중이에요</span></span>
     <svg class="i ticker-more"><use href="#i-caret-right"></use></svg>
   </button>
+  <div class="nowclock" role="timer" aria-label="현재 시각"><time id="nowClock">--:--:--</time></div>
+  </div>
   <nav class="tabs" aria-label="페이지">
     <div class="tabs-track" role="tablist">
       <a role="tab" href="#info" data-tab="info"><svg class="i"><use href="#i-map-pin"></use></svg>안내</a>

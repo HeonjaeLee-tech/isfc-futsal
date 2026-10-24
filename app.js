@@ -239,15 +239,42 @@
   }
   function side(ref) { return ref.code ? esc(M.teams[ref.code].name) : esc(ref.label); }
   function stageChip(m) { return '<span class="stage' + (m.ko ? ' ko' : '') + '">' + esc(m.stage || '경기') + '</span>'; }
+  /* 경기 시계: 시트의 '시작' 시각 + 설정의 경기 시간 기준. 늦게 시작하면 '시작'만 실제 시각으로 고치면 맞춰진다 */
+  function durMin(m) {
+    var s = M.settings, k = t(s['토너먼트 경기시간']), f;
+    if (/결승/.test(m.stage) && (f = k.match(/결승\s*(\d+)/) || t(m.memo).match(/(\d+)\s*분/))) return +f[1];
+    var v = (m.ko ? k : t(s['조별리그 경기시간'])).match(/(\d+)/);
+    return v ? +v[1] : 12;
+  }
+  function clockAttr(m) { return m.status === 'live' && m.at ? ' data-clock="' + m.at + '|' + durMin(m) * 60000 + '"' : ''; }
+  function mmss(ms) { var s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+  function tickClocks() {
+    var n = now();
+    $$('[data-clock]').forEach(function (el) {
+      var p = el.dataset.clock.split('|'), at = +p[0], dur = +p[1], e = Math.max(0, n - at), over = e > dur;
+      var fmt = el.dataset.fmt || 'min';
+      if (fmt === 'min') { el.textContent = (over ? Math.round(dur / 60000) + '+' : Math.floor(e / 60000) + 1) + "'"; }
+      else if (fmt === 'clock') {
+        $('.clock-t', el).textContent = over ? '+' + mmss(e - dur) : mmss(e);
+        $('.clock-sub', el).textContent = over ? '추가시간' : mmss(dur - e) + ' 남음';
+        $('.clock-bar i', el).style.width = Math.min(100, e / dur * 100) + '%';
+        el.classList.toggle('over', over);
+      }
+    });
+    var nc = $('#nowClock'); // 현재 시각은 샘플 모드에서도 실제 한국 시간
+    if (nc) { var d = new Date(Date.now() + 9 * 3600e3), p2 = function (x) { return ('0' + x).slice(-2); }; nc.textContent = p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ':' + p2(d.getUTCSeconds()); }
+  }
   function statusChip(m, onBoard) {
-    if (m.status === 'live') return '<span class="st st-live">LIVE</span>';
+    if (m.status === 'live') return '<span class="st st-live">LIVE' + (m.at ? ' <b' + clockAttr(m) + ' data-fmt="min"></b>' : '') + '</span>';
     if (m.status === 'done') return '<span class="st st-done">종료</span>';
+    if (isEventDay() && m.at && now() - m.at > 3 * 60000) return '<span class="st st-late">지연</span>';
     return '<span class="st">' + (onBoard ? '다음 경기' : '예정') + '</span>';
   }
   function untilText(m) {
     if (!m.at) return m.time ? m.time + ' 시작' : '시간 미정';
     if (!isEventDay()) return '10/31 ' + m.time + ' 시작';
     var d = m.at - now();
+    if (d <= -3 * 60000) return '<b>' + Math.floor(-d / 60000) + '분 지연</b> · 앞 경기 끝나면 시작';
     if (d <= 0) return '곧 시작';
     var min = Math.ceil(d / 60000);
     return min > 90 ? m.time + ' 시작' : min + '분 후 시작 <span class="muted">(' + m.time + ')</span>';
@@ -382,7 +409,8 @@
       var sig = m.no + ':' + m.hg + ':' + m.ag;
       return '<div class="court' + (m.status === 'live' ? ' is-live' : '') + '" data-court="' + esc(c) + '" data-sig="' + sig + '" data-prev="' + esc(old[c] || '') + '">' +
         '<div class="court-head"><span class="court-name">' + esc(c) + '</span>' + statusChip(m, true) + '</div>' +
-        '<div class="court-stage">#' + m.no + ' ' + esc(m.stage) + (m.status === 'sched' ? '' : ' · ' + esc(m.time)) + '</div>' +
+        '<div class="court-stage">#' + m.no + ' ' + esc(m.stage) + (m.status === 'sched' ? '' : ' · ' + esc(m.time) + ' 시작') + '</div>' +
+        (m.status === 'live' && m.at ? '<div class="clock"' + clockAttr(m) + ' data-fmt="clock"><div class="clock-row"><span class="clock-t">0:00</span><span class="clock-sub"></span></div><span class="clock-bar"><i></i></span></div>' : '') +
         '<div class="court-team">' + badge(m.home.code) + '<span class="nm">' + side(m.home) + '</span></div>' +
         score +
         '<div class="court-team">' + badge(m.away.code) + '<span class="nm">' + side(m.away) + '</span></div>' +
@@ -623,10 +651,12 @@
     renderTicker(); renderNotices(); renderHero(); renderFlow();
     renderBoard(); renderFilters(); renderSchedule(); renderStandings(); renderBracket(); renderRules();
     renderScorers(); renderTeams(); renderGoods(); renderFood(); renderParty();
+    tickClocks();
   }
   function tick() { // 1분 단위로 바뀌는 것들 (남은 시간, 흐름)
     if (!M) return;
-    renderHero(); renderFlow(); renderBoard(); if (!M.reveal) renderTeams();
+    renderHero(); renderFlow(); renderBoard(); renderSchedule(); if (!M.reveal) renderTeams();
+    tickClocks();
   }
 
   /* 골, 새 공지 알림 */
@@ -771,4 +801,5 @@
   }
   setInterval(function () { renderSync(); }, 5000);
   setInterval(tick, 30000);
+  setInterval(tickClocks, 1000);
 })();
