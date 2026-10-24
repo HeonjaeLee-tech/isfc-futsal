@@ -572,7 +572,7 @@
     $('#goods').innerHTML = '<div class="goods">' + items.map(function (r) {
       var total = num(r['총수량']) || 0, given = num(r['배부수량']) || 0, left = Math.max(0, total - given);
       var name = t(r['품목']);
-      var img = /텀블러|머그/.test(name) ? 'assets/img/tumbler.jpg' : /키링|하냥/.test(name) ? 'assets/img/keyring.jpg' : '';
+      var img = /텀블러|머그/.test(name) ? 'tumbler.jpg' : /키링|하냥/.test(name) ? 'keyring.jpg' : '';
       var alt = /텀블러|머그/.test(name) ? 'ISFC 20th ANNYV. 엠블럼이 인쇄된 흰색 머그 텀블러' : /키링|하냥/.test(name) ? 'HANYANG 유니폼을 입은 하냥이 아크릴 키링' : '';
       return '<article class="good">' + (img ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" width="900" height="1200">' : '') +
         '<div class="good-body"><div class="good-name">' + esc(name) + '</div>' +
