@@ -7,7 +7,7 @@
  * 비워두면 화면 확인용 샘플 데이터로 보여요.
  */
 window.ISFC_CONFIG = {
-  SHEET_ID: "",
+  SHEET_ID: "1OOM9syRI9TDO6697E5ZBYjdl8ub5KJqe",
 
   EVENT_DATE: "2026-10-31",   // 행사 날짜 (D-day, 남은 시간 계산용)
   POLL_FAST_SEC: 20,          // 공지, 경기, 득점 새로고침 간격(초)
