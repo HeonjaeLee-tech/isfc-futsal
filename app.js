@@ -346,10 +346,18 @@
     if (!r.length && (P['장소'] || P['시간'])) r.push({ key: '', time: P['시간'] || '', place: P['장소'] || '', addr: P['주소'] || '', map: P['지도링크'] || '' });
     return r;
   }
+  /* 조 추첨 시간: 설정 시트 '조추첨' (예: 12:40~13:00). 예전 '개회식' 칸도 읽는다 */
+  function drawTime() {
+    var s = t(M.settings['조추첨'] || M.settings['개회식'] || '12:40~13:00');
+    var m = s.match(/(\d{1,2}\s*:\s*\d{2})(?:[^\d]+(\d{1,2}\s*:\s*\d{2}))?/);
+    var a = m ? hhmm(m[1]) : '12:40', b = m && m[2] ? hhmm(m[2]) : '';
+    return { start: a, end: b, label: b ? a + '~' + b : a };
+  }
   function renderHero() {
     var d = dday(), el = $('#heroDday');
     var dd = d > 0 ? 'D-' + d : d === 0 ? 'D-DAY' : '종료';
     el.innerHTML = '<span class="dd">' + dd + '</span>' + (d === 0 ? '오늘입니다! 10월 31일 토요일' : '10월 31일 토요일');
+    var hd = $('#heroDraw b'); if (hd) hd.textContent = drawTime().label.replace('~', ' ~ ') + ' 조 추첨';
     var R = partyRounds(), hp = $('#heroParty');
     if (hp && R.length) {
       hp.innerHTML = esc(hhmm(R[0].time) || R[0].time) + ' ' + esc((R[0].key ? R[0].key + ' ' : '') + (R[0].place || '장소 공지 예정')) +
@@ -368,8 +376,9 @@
     var ms = M.matches, first = function (f) { for (var i = 0; i < ms.length; i++) if (f(ms[i])) return ms[i]; return null; };
     var g1 = first(function (m) { return !m.ko; }), k1 = first(function (m) { return m.ko; });
     var th = first(function (m) { return /3/.test(m.stage) && /4/.test(m.stage); }), fi = first(function (m) { return /결승/.test(m.stage); });
+    var dr = drawTime();
     var items = [
-      [M.settings['개회식'] || '13:00', '개회식 & 팀 제비뽑기', '당일 제비뽑기로 10팀을 정합니다'],
+      [dr.start, '조 추첨 (팀 제비뽑기)', dr.label + ' · 이때 안 계시면 팀 배정이 어려울 수 있습니다'],
       [g1 && g1.time, '조별리그', 'A조 1구장, B조 2구장 · 팀당 4경기'],
       [k1 && k1.time, '토너먼트', '각 조 1~3위 진출, 조 1위는 4강 직행'],
       [th && th.time, '3·4위전', ''],
@@ -551,7 +560,7 @@
     var s = M.settings;
     $('#rules').innerHTML =
       '<ol class="steps">' +
-        '<li><div><b>팀 정하기</b><p>당일 현장에서 제비뽑기로 10팀을 정합니다. 뽑는 대로 이 사이트에도 바로 공개합니다.</p></div></li>' +
+        '<li><div><b>팀 정하기</b><p>' + esc(drawTime().label) + ' 현장에서 제비뽑기로 10팀을 정합니다. 이 시간에 안 계시면 팀 배정이 어려울 수 있으니 꼭 시간 맞춰 와 주십시오. 뽑는 대로 이 사이트에도 바로 공개합니다.</p></div></li>' +
         '<li><div><b>조별 풀리그</b><p>A조 5팀, B조 5팀이 같은 조의 모든 팀과 한 번씩, 팀당 4경기를 치릅니다. 경기 시간은 ' + esc(s['조별리그 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>토너먼트</b><p>각 조 1~3위가 진출합니다. 조 1위는 4강에 바로 오르고, 2위와 3위는 상대 조와 엇갈려 4강 진출전을 치릅니다. 경기 시간은 ' + esc(s['토너먼트 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>결승과 3·4위전</b><p>토너먼트에서 비기면 ' + esc(s['토너먼트 무승부'] || '승부차기') + '로 승부를 가립니다.</p></div></li>' +
@@ -594,10 +603,10 @@
   /* ───────── 팀 ───────── */
   function renderTeams() {
     if (!M.reveal) {
-      var open = at(M.settings['개회식'] || '13:00'), left = open ? open - now() : 0;
+      var dr = drawTime(), open = at(dr.start), left = open ? open - now() : 0;
       var cd = '';
-      if (left > 0) { var dd = Math.floor(left / 864e5), hh = Math.floor(left % 864e5 / 36e5), mi = Math.floor(left % 36e5 / 6e4); cd = '<div class="cd">' + (dd ? dd + '일 ' : '') + hh + '시간 ' + mi + '분</div><p>공개까지 남은 시간</p>'; }
-      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>개회식에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 정해지는 대로 이곳에 바로 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
+      if (left > 0) { var dd = Math.floor(left / 864e5), hh = Math.floor(left % 864e5 / 36e5), mi = Math.floor(left % 36e5 / 6e4); cd = '<div class="cd">' + (dd ? dd + '일 ' : '') + hh + '시간 ' + mi + '분</div><p>조 추첨까지 남은 시간</p>'; }
+      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>' + esc(dr.label) + ' 현장에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. <b>이 시간에 안 계시면 팀 배정이 어려울 수 있으니</b> 꼭 시간 맞춰 와 주십시오. 정해지는 대로 이곳에 바로 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
       return;
     }
     var html = ['A', 'B'].map(function (g) {
