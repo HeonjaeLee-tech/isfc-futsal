@@ -711,3 +711,80 @@ b, strong { font-weight: 700; }
   .ticker-text.run { animation: none; }
   .ticker-window { text-overflow: ellipsis; }
 }
+
+/* ── 히어로 인사 ───────────────────────── */
+.hero-greet { margin: -4px 0 14px; font-weight: 600; font-size: 15px; color: var(--mint-ink); }
+
+/* ── 주차 한눈에 보기 지도 ───────────────────────── */
+.ovmap { margin: 6px 0 18px; }
+.ovmap-btn {
+  position: relative; display: block; width: 100%; padding: 0; border: 0; background: var(--surface-2);
+  cursor: zoom-in; border-radius: var(--r-panel); overflow: hidden; box-shadow: var(--shadow);
+}
+.ovmap-stage { position: relative; container-type: inline-size; container-name: ovmap; }
+.ovmap-stage img { display: block; width: 100%; height: auto; aspect-ratio: 1676 / 1566; }
+.ovmap-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* 지도 위 그래픽은 위성사진(항상 어두운 바탕) 위에 올라가므로 테마와 상관없이 같은 색을 쓴다 */
+.ov-dim { fill: rgb(8 10 14 / .24); }
+.ov-zone > * { stroke-width: 6; }
+.ov-zone.ov-free > * { fill: rgb(52 199 89 / .24); stroke: #74e895; stroke-dasharray: 20 12; }
+.ov-zone.ov-paid > * { fill: rgb(70 132 255 / .28); stroke: #a8c6ff; }
+.ov-badge circle { stroke: #fff; stroke-width: 6; }
+.ov-badge.ov-free circle { fill: #2f9e4f; }
+.ov-badge.ov-paid circle { fill: #1f5bd6; }
+.ov-badge text { fill: #fff; font: 700 48px/1 var(--f-body); text-anchor: middle; }
+.ov-gate circle { fill: #f2a900; stroke: #fff; stroke-width: 5; }
+.ov-gate use { fill: #2a2000; }
+.ov-ev-dot { fill: #741243; stroke: #fff; stroke-width: 6; }
+.ov-ev use { fill: #fff; }
+.ov-ev-ring { fill: none; stroke: #fff; stroke-width: 4; stroke-dasharray: 12 9; }
+.ov-ev-pulse { fill: rgb(229 72 77 / .45); transform-box: fill-box; transform-origin: center; animation: evpulse 2.4s ease-out infinite; }
+@keyframes evpulse { 0% { transform: scale(.55); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+.ov-lbl { display: none; }
+.ov-lbl rect { stroke: rgb(255 255 255 / .9); stroke-width: 3; }
+.ov-lbl text { fill: #fff; font: 700 30px/1 var(--f-body); text-anchor: middle; }
+.ov-lbl.ov-free rect { fill: #2f9e4f; }
+.ov-lbl.ov-paid rect { fill: #1f5bd6; }
+.ov-lbl.ov-ev rect { fill: #741243; }
+.ov-lbl.ov-gate rect { fill: #f2a900; }
+.ov-lbl.ov-gate text { fill: #2a2000; }
+@container ovmap (min-width: 700px) { .ov-lbl { display: inline; } }
+.zoom-scroll .ovmap-stage { width: 1676px; flex: none; }
+.zoom-scroll img { width: 1924px; max-width: none; height: auto; }
+
+.ovlegend { display: grid; gap: 10px; margin-top: 14px; }
+.ovl { display: flex; gap: 12px; align-items: flex-start; }
+.ovl p { margin: 0; min-width: 0; }
+.ovl b { display: block; font-size: 15px; }
+.ovl span { font-size: 13px; color: var(--muted); }
+.ovl-mark {
+  flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  font: 700 14px/1 var(--f-body); font-style: normal; color: #fff; box-shadow: 0 0 0 2px var(--surface);
+}
+.ovl-mark .i { width: 15px; height: 15px; }
+.ovl-mark.free { background: #2f9e4f; }
+.ovl-mark.paid { background: var(--park); }
+.ovl-mark.gate { background: var(--warn); color: #2a2000; }
+.ovl-mark.ev { background: var(--brand); }
+.ovl-mark.sm { width: 22px; height: 22px; font-size: 12px; }
+.walk-from { display: flex; align-items: center; gap: 8px; }
+.flow time.txt { font: 700 14px/1.4 var(--f-body); letter-spacing: 0; }
+
+/* ── 뒤풀이 1차 → 2차 ───────────────────────── */
+.rounds { display: grid; gap: 6px; margin: 6px 0 16px; }
+.round { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow); padding: 16px; display: grid; gap: 8px; }
+.round.first { background: var(--board); color: var(--board-ink); }
+.round-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.round-key { font: 400 18px/1 var(--f-display); color: var(--brand-text); }
+.round.first .round-key { color: var(--gold); }
+.round-time { font: 400 34px/1 var(--f-num); letter-spacing: .02em; }
+.round-place { font: 400 26px/1.2 var(--f-display); }
+.round-place.tbd { color: var(--muted); font-size: 18px; }
+.round .addr { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.round.first .addr { color: var(--board-muted); }
+.round.first .copy { background: var(--board-2); border-color: var(--board-2); color: var(--board-ink); }
+.round.first .btn-ghost { background: var(--board-2); border-color: var(--board-2); color: var(--board-ink); }
+.round-map { justify-self: start; min-height: 40px; font-size: 14px; }
+.round-arrow { display: grid; place-items: center; color: var(--muted); transform: rotate(90deg); height: 22px; }
+.zoom-scroll .ovmap-stage img { width: 100%; }
+.round-time.txt { font: 700 15px/1.3 var(--f-body); letter-spacing: 0; color: var(--muted); }

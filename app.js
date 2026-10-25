@@ -274,7 +274,7 @@
     if (!m.at) return m.time ? m.time + ' 시작' : '시간 미정';
     if (!isEventDay()) return '10/31 ' + m.time + ' 시작';
     var d = m.at - now();
-    if (d <= -3 * 60000) return '<b>' + Math.floor(-d / 60000) + '분 지연</b> · 앞 경기 끝나면 시작';
+    if (d <= -3 * 60000) return '<b>' + Math.floor(-d / 60000) + '분 지연</b> · 앞 경기가 끝나면 시작합니다';
     if (d <= 0) return '곧 시작';
     var min = Math.ceil(d / 60000);
     return min > 90 ? m.time + ' 시작' : min + '분 후 시작 <span class="muted">(' + m.time + ')</span>';
@@ -297,7 +297,7 @@
   function renderTicker() {
     var el = $('#ticker'), tx = $('#tickerText'), tag = $('#tickerTag');
     var last = M.notices[M.notices.length - 1];
-    if (!last) { el.dataset.level = '일반'; tag.textContent = '공지'; tx.textContent = '아직 공지가 없어요'; tx.classList.remove('run'); return; }
+    if (!last) { el.dataset.level = '일반'; tag.textContent = '공지'; tx.textContent = '아직 공지가 없습니다'; tx.classList.remove('run'); return; }
     el.dataset.level = last.level;
     tag.textContent = last.level === '일반' ? (last.time || '공지') : last.level + (last.time ? ' ' + last.time : '');
     var line = esc(last.text);
@@ -314,7 +314,7 @@
     $('#ticker').setAttribute('aria-label', '최신 공지: ' + last.text + '. 공지 전체 보기');
   }
   function noticeItems(list) {
-    if (!list.length) return '<li class="empty" style="display:block"><b>아직 공지가 없어요</b>공지가 올라오면 여기와 맨 위 배너에 떠요</li>';
+    if (!list.length) return '<li class="empty" style="display:block"><b>아직 공지가 없습니다</b>공지가 올라오면 이곳과 맨 위 배너에 바로 표시됩니다</li>';
     return list.map(function (n) {
       return '<li><time>' + esc(n.time) + '</time><p>' + (n.level !== '일반' ? '<span class="lvl lvl-' + n.level + '">' + n.level + '</span>' : '') + esc(n.text) + '</p></li>';
     }).join('');
@@ -326,10 +326,23 @@
   }
 
   /* ───────── 안내 ───────── */
+  function partyRounds() { // 1차/2차 형식과 예전(시간/장소) 형식 모두 지원
+    var P = M.party, r = [];
+    ['1차', '2차', '3차'].forEach(function (k) {
+      if (P[k + ' 장소'] || P[k + ' 시간']) r.push({ key: k, time: P[k + ' 시간'] || '', place: P[k + ' 장소'] || '', addr: P[k + ' 주소'] || '', map: P[k + ' 지도링크'] || '' });
+    });
+    if (!r.length && (P['장소'] || P['시간'])) r.push({ key: '', time: P['시간'] || '', place: P['장소'] || '', addr: P['주소'] || '', map: P['지도링크'] || '' });
+    return r;
+  }
   function renderHero() {
     var d = dday(), el = $('#heroDday');
     var dd = d > 0 ? 'D-' + d : d === 0 ? 'D-DAY' : '종료';
-    el.innerHTML = '<span class="dd">' + dd + '</span>' + (d === 0 ? '오늘이에요! 10월 31일 토요일' : '10월 31일 토요일');
+    el.innerHTML = '<span class="dd">' + dd + '</span>' + (d === 0 ? '오늘입니다! 10월 31일 토요일' : '10월 31일 토요일');
+    var R = partyRounds(), hp = $('#heroParty');
+    if (hp && R.length) {
+      hp.innerHTML = esc(hhmm(R[0].time) || R[0].time) + ' ' + esc((R[0].key ? R[0].key + ' ' : '') + (R[0].place || '장소 공지 예정')) +
+        R.slice(1).map(function (x) { return ' <span class="muted nowrap">→ ' + esc(x.key + ' ' + (x.place || '공지 예정')) + '</span>'; }).join('');
+    }
     var live = M.matches.filter(function (m) { return m.status === 'live'; });
     var box = $('#heroLive');
     if (live.length) {
@@ -344,19 +357,23 @@
     var g1 = first(function (m) { return !m.ko; }), k1 = first(function (m) { return m.ko; });
     var th = first(function (m) { return /3/.test(m.stage) && /4/.test(m.stage); }), fi = first(function (m) { return /결승/.test(m.stage); });
     var items = [
-      [M.settings['개회식'] || '14:00', '개회식 & 팀 발표', 'OB와 YB를 섞은 10팀 공개'],
+      [M.settings['개회식'] || '13:00', '개회식 & 팀 제비뽑기', '당일 제비뽑기로 10팀을 정합니다'],
       [g1 && g1.time, '조별리그', 'A조 1구장, B조 2구장 · 팀당 4경기'],
-      [k1 && k1.time, '토너먼트', '각 조 1~3위, 조 1위는 4강 직행'],
+      [k1 && k1.time, '토너먼트', '각 조 1~3위 진출, 조 1위는 4강 직행'],
       [th && th.time, '3·4위전', ''],
       [fi && fi.time, '결승', fi && fi.memo ? fi.memo : ''],
-      [M.settings['시상식'] || '17:50', '시상식', '1·2·3등, 득점왕'],
-      [hhmm(M.party['시간']) || '19:30', '2부 뒤풀이', M.party['장소'] || '장소는 뒤풀이 탭에서 공지']
-    ].filter(function (x) { return x[0]; });
+      [M.settings['시상식'] || '17:00', '시상식', '1·2·3등, 득점왕']
+    ];
+    partyRounds().forEach(function (r, i) {
+      items.push([r.time || (i ? '이후' : '18:30'), r.key ? r.key + ' 뒤풀이' : '2부 뒤풀이', r.place || '장소는 뒤풀이 탭에서 알려드립니다']);
+    });
+    items = items.filter(function (x) { return x[0]; });
     var n = now(), ev = isEventDay(), cur = -1;
     if (ev) items.forEach(function (x, i) { var a = at(x[0]); if (a && a <= n) cur = i; });
     $('#flow').innerHTML = items.map(function (x, i) {
       var cls = ev ? (i < cur ? 'done' : i === cur ? 'now' : '') : '';
-      return '<li class="' + cls + '"><time>' + esc(hhmm(x[0]) || x[0]) + '</time><span>' + esc(x[1]) + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</span></li>';
+      var tm = hhmm(x[0]) || x[0];
+      return '<li class="' + cls + '"><time class="' + (hhmm(x[0]) ? '' : 'txt') + '">' + esc(tm) + '</time><span>' + esc(x[1]) + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</span></li>';
     }).join('');
   }
 
@@ -403,9 +420,9 @@
       var score = m.status === 'sched'
         ? '<div class="court-score vs">VS</div>'
         : '<div class="court-score"><span data-n="h">' + (m.hg == null ? 0 : m.hg) + '</span><span class="colon">:</span><span data-n="a">' + (m.ag == null ? 0 : m.ag) + '</span></div>';
-      var foot = m.status === 'live' ? (nxt ? '다음 <b>' + esc(nxt.time) + '</b> ' + side(nxt.home) + ' vs ' + side(nxt.away) : '이 구장 마지막 경기')
+      var foot = m.status === 'live' ? (nxt ? '다음 <b>' + esc(nxt.time) + '</b> ' + side(nxt.home) + ' vs ' + side(nxt.away) : '이 구장의 마지막 경기입니다')
         : m.status === 'sched' ? untilText(m)
-        : '이 구장 경기 모두 끝';
+        : '이 구장 경기가 모두 끝났습니다';
       var sig = m.no + ':' + m.hg + ':' + m.ag;
       return '<div class="court' + (m.status === 'live' ? ' is-live' : '') + '" data-court="' + esc(c) + '" data-sig="' + sig + '" data-prev="' + esc(old[c] || '') + '">' +
         '<div class="court-head"><span class="court-name">' + esc(c) + '</span>' + statusChip(m, true) + '</div>' +
@@ -455,7 +472,7 @@
       if (f === 'A' || f === 'B') return m.group === f;
       return m.court === f;
     });
-    if (!list.length) { $('#schedule').innerHTML = '<div class="empty"><b>보여줄 경기가 없어요</b>[경기] 시트에 경기를 채우면 여기에 떠요</div>'; return; }
+    if (!list.length) { $('#schedule').innerHTML = '<div class="empty"><b>보여드릴 경기가 없습니다</b>경기 일정이 올라오면 이곳에 표시됩니다</div>'; return; }
     var slots = [], idx = {};
     list.forEach(function (m) { var k = m.time || '시간 미정'; if (!(k in idx)) { idx[k] = slots.length; slots.push({ time: k, items: [] }); } slots[idx[k]].items.push(m); });
     $('#schedule').innerHTML = slots.map(function (s) {
@@ -474,7 +491,7 @@
           '<td><div class="tcell">' + badge(r.code, 'sm') + '<span class="nm">' + esc(M.teams[r.code].name) + '</span></div></td>' +
           '<td>' + r.p + '</td><td>' + r.w + '</td><td>' + r.d + '</td><td>' + r.l + '</td><td>' + (r.gd > 0 ? '+' : '') + r.gd + '</td><td class="pts">' + r.pts + '</td></tr>';
       }).join('');
-      return '<h3 class="group-title">' + g + '조<small>' + st.played + ' / ' + st.total + ' 경기 끝' + (st.complete ? ' · 순위 확정' : '') + '</small></h3>' +
+      return '<h3 class="group-title">' + g + '조<small>' + st.played + ' / ' + st.total + ' 경기 종료' + (st.complete ? ' · 순위 확정' : '') + '</small></h3>' +
         '<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">순위</th><th scope="col">팀</th><th scope="col">경기</th><th scope="col">승</th><th scope="col">무</th><th scope="col">패</th><th scope="col">득실</th><th scope="col">승점</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
     }).join('') + '<div class="tbl-legend"><span><i class="rank r1"></i>4강 직행</span><span><i class="rank r2"></i>4강 진출전</span><span>승점 같으면 골득실 → 다득점 → 승자승</span></div>';
   }
@@ -513,7 +530,7 @@
         '<div style="grid-column:5;grid-row:2/6;align-self:center">' + bm(fi, 'final') + '</div>' +
       '</div></div>' +
       '<div class="third"><div class="br-head">3·4위전</div>' + bm(th) + '</div>' +
-      '<p class="fine">조별리그가 끝나면 "A조 2위" 같은 자리가 실제 팀으로 자동으로 바뀌어요.</p>';
+      '<p class="fine">조별리그가 끝나면 "A조 2위" 같은 자리에 실제 팀이 자동으로 들어갑니다.</p>';
   }
 
   /* ───────── 경기: 진행 방식 ───────── */
@@ -521,14 +538,14 @@
     var s = M.settings;
     $('#rules').innerHTML =
       '<ol class="steps">' +
-        '<li><div><b>팀 매칭</b><p>OB와 YB 선수를 섞어 실력 밸런스를 맞춘 뒤 랜덤으로 10팀을 만들어요.</p></div></li>' +
-        '<li><div><b>조별 풀리그</b><p>A조 5팀, B조 5팀이 같은 조 모든 팀과 한 번씩, 팀당 4경기를 뛰어요. 경기 시간 ' + esc(s['조별리그 경기시간'] || '12분') + '.</p></div></li>' +
-        '<li><div><b>토너먼트</b><p>각 조 1~3위가 올라가요. 조 1위는 4강 직행, 2위와 3위는 상대 조와 교차로 4강 진출전을 치러요. 경기 시간 ' + esc(s['토너먼트 경기시간'] || '12분') + '.</p></div></li>' +
-        '<li><div><b>결승과 3·4위전</b><p>토너먼트에서 비기면 ' + esc(s['토너먼트 무승부'] || '승부차기') + '로 가려요.</p></div></li>' +
+        '<li><div><b>팀 정하기</b><p>당일 현장에서 제비뽑기로 10팀을 정합니다. 뽑는 대로 이 사이트에도 바로 공개합니다.</p></div></li>' +
+        '<li><div><b>조별 풀리그</b><p>A조 5팀, B조 5팀이 같은 조의 모든 팀과 한 번씩, 팀당 4경기를 치릅니다. 경기 시간은 ' + esc(s['조별리그 경기시간'] || '12분') + '입니다.</p></div></li>' +
+        '<li><div><b>토너먼트</b><p>각 조 1~3위가 진출합니다. 조 1위는 4강에 바로 오르고, 2위와 3위는 상대 조와 엇갈려 4강 진출전을 치릅니다. 경기 시간은 ' + esc(s['토너먼트 경기시간'] || '12분') + '입니다.</p></div></li>' +
+        '<li><div><b>결승과 3·4위전</b><p>토너먼트에서 비기면 ' + esc(s['토너먼트 무승부'] || '승부차기') + '로 승부를 가립니다.</p></div></li>' +
       '</ol>' +
-      '<h3 class="h3">조 순위 정하는 법</h3>' +
+      '<h3 class="h3">조 순위 정하는 방법</h3>' +
       '<div class="order"><span class="chip">승점 (승 3 · 무 1 · 패 0)</span>' + icon('caret-right') + '<span class="chip">골득실</span>' + icon('caret-right') + '<span class="chip">다득점</span>' + icon('caret-right') + '<span class="chip">승자승</span></div>' +
-      '<p class="quote">승패와 상관없이 많은 경기를 뛸 수 있도록 진행해요!</p>';
+      '<p class="quote">승패와 상관없이 최대한 많은 경기를 뛰실 수 있도록 진행합니다.</p>';
   }
 
   /* ───────── 득점왕 ───────── */
@@ -541,7 +558,7 @@
   }
   function renderScorers() {
     var L = M.scorers;
-    if (!L.length) { $('#scorers').innerHTML = '<div class="empty"><b>아직 골이 없어요</b>첫 골의 주인공은 누가 될까요? 골이 기록되면 바로 순위가 떠요</div>'; return; }
+    if (!L.length) { $('#scorers').innerHTML = '<div class="empty"><b>아직 골이 없습니다</b>첫 골의 주인공을 기다리고 있습니다. 골이 기록되면 바로 순위가 표시됩니다</div>'; return; }
     var top = L.slice(0, 3), order = [1, 0, 2];
     var pod = '<div class="podium">' + order.map(function (i) {
       var s = top[i]; if (!s) return '<div></div>';
@@ -564,10 +581,10 @@
   /* ───────── 팀 ───────── */
   function renderTeams() {
     if (!M.reveal) {
-      var open = at(M.settings['개회식'] || '14:00'), left = open ? open - now() : 0;
+      var open = at(M.settings['개회식'] || '13:00'), left = open ? open - now() : 0;
       var cd = '';
       if (left > 0) { var dd = Math.floor(left / 864e5), hh = Math.floor(left % 864e5 / 36e5), mi = Math.floor(left % 36e5 / 6e4); cd = '<div class="cd">' + (dd ? dd + '일 ' : '') + hh + '시간 ' + mi + '분</div><p>공개까지 남은 시간</p>'; }
-      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀 매칭은 당일 공개</h3><p>OB와 YB를 섞어 실력 밸런스를 맞춘 10팀이 A조와 B조로 나뉘어요. 개회식에서 발표하고 여기에도 바로 떠요.</p>' + cd + '</div>';
+      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>개회식에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 정해지는 대로 이곳에 바로 공개합니다.</p>' + cd + '</div>';
       return;
     }
     var html = ['A', 'B'].map(function (g) {
@@ -584,7 +601,7 @@
           (roster.length ? '<div class="roster">' + roster.map(function (p) {
             var cap = (tm.captain && tm.captain === p.name) || /주장/.test(p.memo);
             return '<span class="' + (cap ? 'cap' : '') + '">' + (cap ? icon('crown-simple-fill') : '') + esc(p.name) + (p.year ? ' <small>' + esc(p.year) + '</small>' : '') + (p.kind ? '<span class="ob' + (p.kind === 'YB' ? ' yb' : '') + '" style="border:0;padding:1px 6px">' + esc(p.kind) + '</span>' : '') + '</span>';
-          }).join('') + '</div>' : '<p class="muted" style="margin:0;font-size:13px">선수 명단 준비 중</p>') +
+          }).join('') + '</div>' : '<p class="muted" style="margin:0;font-size:13px">선수 명단을 준비하고 있습니다</p>') +
           (nxt ? '<div class="team-next">' + icon('clock') + '다음 경기 <b>' + esc(nxt.time) + ' ' + esc(nxt.court) + '</b> vs ' + side(vs) + '</div>' : '') +
           '</article>';
       }).join('');
@@ -596,7 +613,7 @@
   /* ───────── 기념품 ───────── */
   function renderGoods() {
     var items = M.goods.filter(function (r) { return t(r['품목']); });
-    if (!items.length) { $('#goods').innerHTML = '<div class="empty"><b>기념품 정보 준비 중</b></div>'; return; }
+    if (!items.length) { $('#goods').innerHTML = '<div class="empty"><b>기념품 정보를 준비하고 있습니다</b></div>'; return; }
     $('#goods').innerHTML = '<div class="goods">' + items.map(function (r) {
       var total = num(r['총수량']) || 0, given = num(r['배부수량']) || 0, left = Math.max(0, total - given);
       var name = t(r['품목']);
@@ -604,7 +621,7 @@
       var alt = /텀블러|머그/.test(name) ? 'ISFC 20th ANNYV. 엠블럼이 인쇄된 흰색 머그 텀블러' : /키링|하냥/.test(name) ? 'HANYANG 유니폼을 입은 하냥이 아크릴 키링' : '';
       return '<article class="good">' + (img ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" width="900" height="1200">' : '') +
         '<div class="good-body"><div class="good-name">' + esc(name) + '</div>' +
-        (total ? (left ? '<div class="good-left">' + left + '<small>/ ' + total + ' 남음</small></div>' : '<div class="soldout">모두 나갔어요</div>') +
+        (total ? (left ? '<div class="good-left">' + left + '<small>/ ' + total + ' 남음</small></div>' : '<div class="soldout">모두 소진되었습니다</div>') +
           '<div class="meter" role="img" aria-label="' + total + '개 중 ' + left + '개 남음"><i style="width:' + (total ? Math.round(left / total * 100) : 0) + '%"></i></div>' : '') +
         (t(r['수령장소']) ? '<div class="good-where">' + icon('map-pin') + '<span>' + esc(r['수령장소']) + '</span></div>' : '') +
         (t(r['메모']) ? '<div class="good-where">' + esc(r['메모']) + '</div>' : '') +
@@ -615,34 +632,37 @@
   /* ───────── 안주 ───────── */
   function renderFood() {
     var items = M.food.filter(function (r) { return t(r['메뉴']); });
-    if (!items.length) { $('#food').innerHTML = '<div class="empty"><b>안주 라인업은 곧 공개돼요</b>찬조해주시는 선배님들 안주도 여기에 올라와요</div>'; return; }
-    var givers = [];
-    items.forEach(function (r) { var g = t(r['찬조']); if (g) givers.push({ who: g, what: t(r['메뉴']) }); });
+    if (!items.length) { $('#food').innerHTML = '<div class="empty"><b>안주 품목은 곧 알려드리겠습니다</b>준비되는 대로 이곳에 올려 드립니다</div>'; return; }
     $('#food').innerHTML = '<ul class="menu">' + items.map(function (r) {
       var st = t(r['상태']) || '준비중';
       return '<li class="' + (/소진/.test(st) ? 'gone' : '') + '"><span class="nm">' + esc(r['메뉴']) + (t(r['수량']) ? '<small>' + esc(r['수량']) + '</small>' : '') + '</span>' +
         '<span class="fs fs-' + esc(st) + '">' + esc(st) + '</span>' +
-        (t(r['찬조']) ? '<span class="by">' + icon('crown-simple-fill') + esc(r['찬조']) + ' 찬조</span>' : '') +
         (t(r['메모']) ? '<span class="memo">' + esc(r['메모']) + '</span>' : '') + '</li>';
-    }).join('') + '</ul>' +
-    (givers.length ? '<div class="thanks"><h3>' + icon('star-fill') + '찬조해주셔서 감사합니다</h3><ul>' + givers.map(function (g) { return '<li>' + esc(g.who) + '<small>' + esc(g.what) + '</small></li>'; }).join('') + '</ul></div>' : '');
+    }).join('') + '</ul>';
   }
 
   /* ───────── 뒤풀이 ───────── */
   function renderParty() {
-    var P = M.party;
-    var place = P['장소'], addr = P['주소'];
-    var map = P['지도링크'] || (addr ? 'https://map.kakao.com/link/search/' + encodeURIComponent(addr.replace(/^\(샘플\)\s*/, '')) : '');
+    var P = M.party, R = partyRounds();
+    var cards = R.map(function (r, i) {
+      var q = (r.place + ' ' + r.addr.replace(/^\(샘플\)\s*/, '')).trim();
+      var map = r.map || (r.addr ? 'https://map.kakao.com/link/search/' + encodeURIComponent(r.addr.replace(/^\(샘플\)\s*/, '')) : '');
+      var id = 'addr' + i;
+      return '<article class="round' + (i === 0 ? ' first' : '') + '">' +
+        '<div class="round-head"><span class="round-key">' + esc(r.key || '뒤풀이') + '</span><span class="round-time' + (hhmm(r.time) ? '' : ' txt') + '">' + esc(hhmm(r.time) || r.time || '시간 공지 예정') + '</span></div>' +
+        '<div class="round-place' + (r.place ? '' : ' tbd') + '">' + esc(r.place || '장소는 곧 알려드리겠습니다') + '</div>' +
+        (r.addr ? '<div class="addr"><span id="' + id + '">' + esc(r.addr) + '</span><button type="button" class="copy" data-copy="' + id + '">' + icon('copy') + '복사</button></div>' : '') +
+        (map && q ? '<a class="btn btn-ghost round-map" href="' + esc(map) + '" target="_blank" rel="noopener">' + icon('map-trifold') + '지도에서 보기</a>' : '') +
+        '</article>';
+    }).join('<div class="round-arrow" aria-hidden="true">' + icon('arrow-right') + '</div>');
     var rows = [];
-    if (addr) rows.push(['주소', '<div class="addr"><span id="addrText">' + esc(addr) + '</span><button type="button" class="copy" data-copy="addrText">' + icon('copy') + '복사</button></div>']);
     if (P['회비']) rows.push(['회비', esc(P['회비'])]);
     if (P['이동방법']) rows.push(['이동', esc(P['이동방법'])]);
     $('#party').innerHTML =
-      '<div class="party-hero"><div class="party-time">' + esc(P['시간'] || '19:30~') + '</div><div class="party-place' + (place ? '' : ' tbd') + '">' + esc(place || '장소는 곧 공지할게요') + '</div></div>' +
+      (cards ? '<div class="rounds">' + cards + '</div>' : '<div class="empty"><b>뒤풀이 장소는 곧 알려드리겠습니다</b></div>') +
       (rows.length ? '<dl class="kv">' + rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('') + '</dl>' : '') +
-      (map ? '<div class="links" style="margin-bottom:16px"><a class="btn btn-ghost" href="' + esc(map) + '" target="_blank" rel="noopener">' + icon('map-trifold') + '지도에서 보기</a></div>' : '') +
       (P['공지'] ? '<p class="quote">' + esc(P['공지']) + '</p>' : '') +
-      '<div class="callout">' + icon('car') + '<p><b>차는 뒤풀이 전에 빼면 아껴요.</b> 교내에 하루 종일 두면 최대 24,000원이에요. <a href="#parking" data-scroll="parking">주차 요금 보기</a></p></div>';
+      '<div class="callout">' + icon('car') + '<p><b>차량은 뒤풀이 전에 빼 두시면 요금을 아끼실 수 있습니다.</b> 교내에 하루 종일 두시면 최대 24,000원입니다. <a href="#parking" data-scroll="parking">주차 안내 보기</a></p></div>';
   }
 
   /* ───────── 전체 그리기 ───────── */
@@ -717,7 +737,7 @@
     });
   }
   function showLoadError() {
-    $('#board').innerHTML = '<div class="empty" style="grid-column:1/-1"><b>시트를 불러오지 못했어요</b>구글 시트 공유가 "링크가 있는 모든 사용자 · 뷰어"인지, config.js의 SHEET_ID가 맞는지 확인해 주세요. 20초마다 다시 시도해요.</div>';
+    $('#board').innerHTML = '<div class="empty" style="grid-column:1/-1"><b>경기 정보를 불러오지 못했습니다</b>잠시 후 자동으로 다시 시도합니다. 계속되면 운영진에게 알려 주십시오.</div>';
   }
   var fastTimer = null, slowTimer = null;
   function schedule() {
@@ -761,7 +781,15 @@
     var fl = e.target.closest('[data-filter]'); if (fl) { ui.filter = fl.dataset.filter; renderFilters(); renderSchedule(); return; }
     if (e.target.closest('#ticker') || e.target.closest('[data-open="notices"]')) { openSheet(); return; }
     var z = e.target.closest('[data-zoom]');
-    if (z) { var zo = $('#zoom'); $('#zoomImg').src = z.dataset.zoom; zo.hidden = false; var sc2 = $('.zoom-scroll', zo); setTimeout(function () { sc2.scrollLeft = (sc2.scrollWidth - sc2.clientWidth) / 2; sc2.scrollTop = (sc2.scrollHeight - sc2.clientHeight) / 2; }, 30); $('.zoom-close').focus(); return; }
+    if (z) {
+      var zo = $('#zoom'), sc2 = $('.zoom-scroll', zo);
+      sc2.innerHTML = '';
+      if (z.dataset.zoom === 'overview') { var st = $('#ovmap .ovmap-stage').cloneNode(true); st.classList.add('zoomed'); sc2.appendChild(st); }
+      else { var im = document.createElement('img'); im.src = z.dataset.zoom; im.alt = '지도 크게 보기'; sc2.appendChild(im); }
+      zo.hidden = false;
+      setTimeout(function () { sc2.scrollLeft = (sc2.scrollWidth - sc2.clientWidth) / 2; sc2.scrollTop = (sc2.scrollHeight - sc2.clientHeight) / 2; }, 30);
+      $('.zoom-close').focus(); return;
+    }
     if (e.target.closest('[data-close]')) { closeOverlays(); return; }
     var cp = e.target.closest('[data-copy]');
     if (cp) {
