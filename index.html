@@ -14,10 +14,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=20261025c">
+<link rel="stylesheet" href="style.css?v=20261025d">
 </head>
 <body>
-<script src="icons.js?v=20261025c"></script>
+<script src="icons.js?v=20261025d"></script>
 
 <div class="brandbar">
   <a class="brand" href="#info" data-tab="info" aria-label="ISFC 20주년 풋살대회 처음으로">
@@ -47,6 +47,7 @@
       <a role="tab" href="#match" data-tab="match"><svg class="i"><use href="#i-soccer-ball"></use></svg>경기</a>
       <a role="tab" href="#scorers" data-tab="scorers"><svg class="i"><use href="#i-trophy"></use></svg>득점왕</a>
       <a role="tab" href="#teams" data-tab="teams"><svg class="i"><use href="#i-users-three"></use></svg>팀</a>
+      <a role="tab" href="#deco" data-tab="deco"><svg class="i"><use href="#i-palette"></use></svg>팀 꾸미기</a>
       <a role="tab" href="#goods" data-tab="goods"><svg class="i"><use href="#i-gift"></use></svg>기념품</a>
       <a role="tab" href="#food" data-tab="food"><svg class="i"><use href="#i-fork-knife"></use></svg>안주</a>
       <a role="tab" href="#party" data-tab="party"><svg class="i"><use href="#i-beer-stein"></use></svg>뒤풀이</a>
@@ -96,7 +97,7 @@
       <figure class="ovmap" id="ovmap">
         <button class="ovmap-btn" type="button" data-zoom="overview" aria-label="주차 지도 크게 보기">
           <div class="ovmap-stage">
-            <img src="map-parking.jpg?v=20261025c" alt="한양대 ERICA 주차 안내 지도. 행사장 풋살장, 교외 주차 구역 두 곳(경기테크노파크, 석호상가 인근), 교내 주차장 두 곳(학술정보관 옆, 정문 셔틀콕 옆), 교내 진입 차단기 두 곳 표시" width="1199" height="1120">
+            <img src="map-parking.jpg?v=20261025d" alt="한양대 ERICA 주차 안내 지도. 행사장 풋살장, 교외 주차 구역 두 곳(경기테크노파크, 석호상가 인근), 교내 주차장 두 곳(학술정보관 옆, 정문 셔틀콕 옆), 교내 진입 차단기 두 곳 표시" width="1199" height="1120">
           </div>
           <span class="map-hint"><svg class="i"><use href="#i-magnifying-glass-plus"></use></svg>크게 보기</span>
         </button>
@@ -208,7 +209,7 @@
         <div><span>득점왕</span><b>5<small>만원</small></b></div>
       </div>
       <a class="gift-teaser" href="#goods" data-tab="goods">
-        <img src="tumbler.jpg?v=20261025c" alt="ISFC 20th ANNYV. 엠블럼이 인쇄된 흰색 머그 텀블러" width="900" height="1125" loading="lazy">
+        <img src="tumbler.jpg?v=20261025d" alt="ISFC 20th ANNYV. 엠블럼이 인쇄된 흰색 머그 텀블러" width="900" height="1125" loading="lazy">
         <p><b>참가자 전원 20주년 텀블러 + 하냥이 키링</b><span>풋살이나 뒤풀이 중 한 곳만 오셔도 드립니다. 200개 한정</span></p>
         <svg class="i"><use href="#i-caret-right"></use></svg>
       </a>
@@ -260,6 +261,15 @@
     <div class="wrap block-top">
       <h2 class="h2">팀 정보</h2>
       <div id="teams"></div>
+    </div>
+  </section>
+
+  <!-- ───────────── 팀 꾸미기 ───────────── -->
+  <section class="view" id="view-deco" data-view="deco" hidden>
+    <div class="wrap block-top">
+      <h2 class="h2">팀 꾸미기</h2>
+      <p class="lead">우리 팀 이름과 엠블럼을 직접 정해 주십시오. 저장하시면 경기 현황, 순위표, 대진표에 바로 바뀌어 나옵니다.</p>
+      <div id="deco"></div>
     </div>
   </section>
 
@@ -319,8 +329,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="config.js?v=20261025c"></script>
-<script src="demo.js?v=20261025c"></script>
-<script src="app.js?v=20261025c"></script>
+<script src="config.js?v=20261025d"></script>
+<script src="demo.js?v=20261025d"></script>
+<script src="app.js?v=20261025d"></script>
 </body>
 </html>

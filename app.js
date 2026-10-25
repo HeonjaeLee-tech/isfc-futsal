@@ -4,13 +4,14 @@
 (function () {
   'use strict';
 
-  var CFG = Object.assign({ SHEET_ID: '', EVENT_DATE: '2026-10-31', POLL_FAST_SEC: 20, POLL_SLOW_SEC: 120, DEMO_NOW: '' }, window.ISFC_CONFIG || {});
+  var CFG = Object.assign({ SHEET_ID: '', EVENT_DATE: '2026-10-31', POLL_FAST_SEC: 20, POLL_SLOW_SEC: 120, DEMO_NOW: '', DECO_URL: '', DECO_POLL_SEC: 45 }, window.ISFC_CONFIG || {});
   var DEMO = !String(CFG.SHEET_ID || '').trim();
   var BOOT = Date.now();
   var SHEETS = ['공지', '경기', '득점', '팀', '선수', '기념품', '안주', '뒤풀이', '설정'];
   var FAST = ['공지', '경기', '득점'];
   var SLOW = ['팀', '선수', '기념품', '안주', '뒤풀이', '설정'];
-  var TABS = ['info', 'match', 'scorers', 'teams', 'goods', 'food', 'party'];
+  var TABS = ['info', 'match', 'scorers', 'teams', 'deco', 'goods', 'food', 'party'];
+  var CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5'];
   var VEST = { 빨강: '#d63a3a', 주황: '#f08a24', 노랑: '#f2c94c', 연두: '#9bd35a', 초록: '#2e8b57', 하늘: '#5bc0eb', 파랑: '#2f6fdb', 남색: '#1f2f6b', 보라: '#7e57c2', 분홍: '#f06fa4', 검정: '#2b2b2b', 흰색: '#f4f4f4', 회색: '#9e9e9e' };
 
   /* ───────── 작은 도구들 ───────── */
@@ -109,6 +110,10 @@
     mine: store.get('mine') || '', park: store.get('park') || 'in'
   };
 
+  /* 팀 꾸미기: 팀별 이름·사진 (Apps Script 웹앱에 저장) */
+  var DECO = { v: '', teams: {}, locked: false, ok: false };
+  (function () { try { var c = JSON.parse(store.get('deco') || 'null'); if (c && c.teams) { DECO.v = c.v || ''; DECO.teams = c.teams; DECO.locked = !!c.locked; } } catch (e) { /* 무시 */ } })();
+
   /* ───────── 모델 계산 ───────── */
   function build() {
     var settings = {};
@@ -122,7 +127,13 @@
       teams[code] = { code: code, group: code[0], rawName: t(r['팀명']), color: VEST[t(r['조끼색'])] || null, colorName: t(r['조끼색']), captain: t(r['주장']), motto: t(r['한마디']) };
     });
     ['A', 'B'].forEach(function (g) { for (var i = 1; i <= 5; i++) { var c = g + i; if (!teams[c]) teams[c] = { code: c, group: g, rawName: '', color: null }; } });
-    Object.keys(teams).forEach(function (c) { var tm = teams[c]; tm.name = reveal && tm.rawName ? tm.rawName : c + '팀'; if (!reveal) tm.color = null; });
+    Object.keys(teams).forEach(function (c) {
+      var tm = teams[c]; tm.name = reveal && tm.rawName ? tm.rawName : c + '팀'; if (!reveal) tm.color = null;
+      tm.baseName = tm.name;
+      var dc = DECO.teams[c]; // 팀 꾸미기에서 바꾼 이름·사진이 시트보다 우선
+      if (dc && t(dc.name)) tm.name = t(dc.name);
+      tm.img = !!(dc && dc.img);
+    });
 
     var players = D['선수'].filter(function (r) { return t(r['이름']); }).map(function (r) {
       return { name: t(r['이름']), year: t(r['학번']).replace(/학번$/, ''), kind: t(r['구분']).toUpperCase(), team: t(r['팀코드']).toUpperCase(), memo: t(r['메모']) };
@@ -234,6 +245,7 @@
     if (!tm) return '<span class="badge tbd ' + (size || '') + '" aria-hidden="true">?</span>';
     var bg = tm.color, fg = 'var(--ink)';
     if (bg) { var r = parseInt(bg.slice(1, 3), 16), g = parseInt(bg.slice(3, 5), 16), b = parseInt(bg.slice(5, 7), 16); fg = (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#1d1a1f' : '#ffffff'; }
+    if (tm.img) return '<span class="badge has-img tb-' + code + ' ' + (size || '') + '"' + (bg ? ' style="--vest:' + bg + '"' : '') + ' aria-hidden="true"></span>';
     var style = bg ? ' style="background:' + bg + ';color:' + fg + '"' : '';
     return '<span class="badge ' + (size || '') + '"' + style + ' aria-hidden="true">' + esc(code) + '</span>';
   }
@@ -585,7 +597,7 @@
       var open = at(M.settings['개회식'] || '13:00'), left = open ? open - now() : 0;
       var cd = '';
       if (left > 0) { var dd = Math.floor(left / 864e5), hh = Math.floor(left % 864e5 / 36e5), mi = Math.floor(left % 36e5 / 6e4); cd = '<div class="cd">' + (dd ? dd + '일 ' : '') + hh + '시간 ' + mi + '분</div><p>공개까지 남은 시간</p>'; }
-      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>개회식에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 정해지는 대로 이곳에 바로 공개합니다.</p>' + cd + '</div>';
+      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>개회식에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 정해지는 대로 이곳에 바로 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
       return;
     }
     var html = ['A', 'B'].map(function (g) {
@@ -597,7 +609,8 @@
         var vs = nxt ? (nxt.home.code === c ? nxt.away : nxt.home) : null;
         return '<article class="team' + (ui.mine === c ? ' is-mine' : '') + '">' +
           '<div class="team-head">' + badge(c, 'lg') + '<div><div class="team-name">' + esc(tm.name) + '</div>' +
-          '<div class="team-rec">' + esc(c) + (tm.colorName ? ' · ' + esc(tm.colorName) + ' 조끼' : '') + ' · ' + (rec && rec.r.p ? rec.r.w + '승 ' + rec.r.d + '무 ' + rec.r.l + '패, ' + rec.r.gf + '골 · ' + g + '조 ' + rec.pos + '위' : '아직 경기 전') + '</div></div></div>' +
+          '<div class="team-rec">' + esc(c) + (tm.colorName ? ' · ' + esc(tm.colorName) + ' 조끼' : '') + ' · ' + (rec && rec.r.p ? rec.r.w + '승 ' + rec.r.d + '무 ' + rec.r.l + '패, ' + rec.r.gf + '골 · ' + g + '조 ' + rec.pos + '위' : '아직 경기 전') + '</div></div>' +
+          (CFG.DECO_URL ? '<a class="team-deco" href="#deco" data-tab="deco" data-deco-pick="' + c + '" aria-label="' + esc(tm.name) + ' 꾸미기">' + icon('pencil-simple') + '</a>' : '') + '</div>' +
           (tm.motto ? '<p class="team-motto">' + esc(tm.motto) + '</p>' : '') +
           (roster.length ? '<div class="roster">' + roster.map(function (p) {
             var cap = (tm.captain && tm.captain === p.name) || /주장/.test(p.memo);
@@ -609,6 +622,178 @@
       return '<h3 class="group-title">' + g + '조</h3><div class="teams">' + cards + '</div>';
     }).join('');
     $('#teams').innerHTML = html;
+  }
+
+  /* ───────── 팀 꾸미기 ───────── */
+  // dz.name: null이면 입력칸을 아직 안 건드림 / dz.img: undefined=사진 그대로, ''=지우기, 'data:...'=새 사진 / dz.src: 고른 원본(맞춤 방식 바꿀 때 다시 그림)
+  var dz = { team: store.get('decoTeam') || '', name: null, img: undefined, src: null, fit: 'cover', busy: false, msg: '', kind: '' };
+  var decoCssSig = null, decoTimer = null, decoBusy = false;
+  function decoCss() {
+    var sig = CODES.map(function (c) { var d = DECO.teams[c]; return d && d.img ? c + d.img.length + d.img.slice(-12) : ''; }).join(',');
+    if (sig === decoCssSig) return;
+    decoCssSig = sig;
+    var el = document.getElementById('decoCss');
+    if (!el) { el = document.createElement('style'); el.id = 'decoCss'; document.head.appendChild(el); }
+    el.textContent = CODES.map(function (c) { var d = DECO.teams[c]; return d && d.img ? '.tb-' + c + '{background-image:url("' + d.img + '")}' : ''; }).join('\n');
+  }
+  function applyDeco() { decoCss(); if (M) renderAll(); }
+  function saveDecoCache() { store.set('deco', JSON.stringify({ v: DECO.v, teams: DECO.teams, locked: DECO.locked })); }
+  function decoJsonp(u) {
+    return new Promise(function (resolve, reject) {
+      var cb = '__isfcd' + Math.random().toString(36).slice(2), s = document.createElement('script');
+      var timer = setTimeout(function () { done(); reject(new Error('시간 초과')); }, 15000);
+      function done() { clearTimeout(timer); try { delete window[cb]; } catch (e) { window[cb] = undefined; } s.remove(); }
+      window[cb] = function (d) { done(); resolve(d); };
+      s.onerror = function () { done(); reject(new Error('불러오기 실패')); };
+      s.src = u + '&callback=' + cb; document.head.appendChild(s);
+    });
+  }
+  function fetchDeco() {
+    if (!CFG.DECO_URL || decoBusy) return Promise.resolve();
+    decoBusy = true;
+    var u = CFG.DECO_URL + (CFG.DECO_URL.indexOf('?') < 0 ? '?' : '&') + 'v=' + encodeURIComponent(DECO.v || '') + '&t=' + Date.now();
+    return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .catch(function () { return decoJsonp(u); })
+      .then(function (d) {
+        if (!d || !d.ok) return;
+        var changed = !DECO.ok;
+        DECO.ok = true;
+        if (!!d.locked !== DECO.locked) { DECO.locked = !!d.locked; changed = true; }
+        if (!d.same && d.teams) { DECO.teams = d.teams; DECO.v = String(d.v || ''); changed = true; }
+        if (changed) { saveDecoCache(); applyDeco(); }
+      }, function () { /* 다음 차례에 다시 */ })
+      .then(function () { decoBusy = false; });
+  }
+  function scheduleDeco() {
+    clearTimeout(decoTimer);
+    if (!CFG.DECO_URL || document.hidden) return;
+    decoTimer = setTimeout(function () { fetchDeco().then(scheduleDeco); }, CFG.DECO_POLL_SEC * 1000);
+  }
+  function agoMs(ms) {
+    var s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    return s < 60 ? '방금' : s < 3600 ? Math.floor(s / 60) + '분 전' : s < 86400 ? Math.floor(s / 3600) + '시간 전' : Math.floor(s / 86400) + '일 전';
+  }
+  function decoTeam() { if (CODES.indexOf(dz.team) < 0) dz.team = CODES.indexOf(ui.mine) >= 0 ? ui.mine : 'A1'; return dz.team; }
+  function pickDecoTeam(c) {
+    if (CODES.indexOf(c) < 0) return;
+    if (dz.team !== c) { dz = { team: c, name: null, img: undefined, src: null, fit: 'cover', busy: false, msg: '', kind: '' }; store.set('decoTeam', c); }
+  }
+  function renderDeco(full) {
+    var box = $('#deco'); if (!box || !M) return;
+    if (!CFG.DECO_URL) { box.innerHTML = '<div class="empty"><b>팀 꾸미기를 준비하고 있습니다</b>곧 열어 드리겠습니다</div>'; return; }
+    var c = decoTeam();
+    if (full || !$('#decoForm', box)) {
+      box.innerHTML =
+        '<div class="deco-locked" id="decoLocked" hidden>' + icon('lock-simple') + '<span>운영진이 팀 꾸미기를 마감했습니다. 지금 모습 그대로 경기를 진행합니다.</span></div>' +
+        '<div class="deco-pick" role="radiogroup" aria-label="꾸밀 팀 고르기">' + ['A', 'B'].map(function (g) {
+          return '<div class="deco-row"><span class="deco-g">' + g + '조</span><div class="deco-tiles">' + [1, 2, 3, 4, 5].map(function (i) { return '<button type="button" class="deco-tile" role="radio" data-deco-team="' + g + i + '"></button>'; }).join('') + '</div></div>';
+        }).join('') + '</div>' +
+        '<form class="deco-card" id="decoForm" autocomplete="off" novalidate>' +
+          '<div class="deco-top">' +
+            '<div class="deco-avatar" id="decoAvatar" aria-hidden="true"></div>' +
+            '<div class="deco-meta">' +
+              '<div class="deco-code" id="decoCode"></div>' +
+              '<div class="deco-photo-btns">' +
+                '<label class="btn btn-ghost sm deco-file" for="decoFile">' + icon('image') + '사진 고르기</label>' +
+                '<input type="file" id="decoFile" accept="image/*" class="sr-file">' +
+                '<button type="button" class="link-btn deco-clear" id="decoClear">' + icon('trash') + '사진 지우기</button>' +
+              '</div>' +
+              '<div class="deco-fit" id="decoFit" role="group" aria-label="사진 맞춤"><button type="button" class="chip" data-fit="cover">꽉 채우기</button><button type="button" class="chip" data-fit="contain">전체 보이기</button></div>' +
+            '</div>' +
+          '</div>' +
+          '<label class="deco-name" for="decoName"><span>팀 이름 <small id="decoCount"></small></span><input id="decoName" type="text" maxlength="12" enterkeyhint="done" autocapitalize="off" spellcheck="false"></label>' +
+          '<div class="deco-prev" id="decoPrev"></div>' +
+          '<button type="submit" class="btn btn-primary deco-save" id="decoSave">' + icon('check') + '저장하기</button>' +
+          '<p class="deco-msg" id="decoMsg" role="status" aria-live="polite"></p>' +
+        '</form>' +
+        '<p class="fine">링크가 있으면 누구나 바꾸실 수 있습니다. 바꾼 기록은 모두 남아 있으니 서로의 팀은 아껴 주십시오. 이름을 비우고 저장하시면 원래 이름으로 돌아갑니다.</p>';
+      $('#decoName').value = dz.name != null ? dz.name : t(DECO.teams[c] && DECO.teams[c].name);
+    }
+    updateDeco();
+  }
+  function updateDeco() {
+    if (!$('#decoForm')) return;
+    var c = dz.team, tm = M.teams[c], d = DECO.teams[c] || {};
+    $$('.deco-tile').forEach(function (b) {
+      var k = b.dataset.decoTeam;
+      b.setAttribute('aria-checked', String(k === c));
+      b.innerHTML = badge(k) + '<span>' + esc(M.teams[k].name) + '</span>';
+    });
+    var img = dz.img !== undefined ? dz.img : (d.img || '');
+    var av = $('#decoAvatar');
+    av.classList.toggle('has-img', !!img);
+    av.style.backgroundImage = img ? 'url("' + img + '")' : '';
+    av.style.backgroundColor = img ? '' : (tm.color || '');
+    av.style.color = img ? '' : (tm.color ? badgeInk(tm.color) : '');
+    av.style.setProperty('--vest', tm.color || 'transparent');
+    av.textContent = img ? '' : c;
+    $('#decoCode').innerHTML = '<b>' + c + '</b>' + (tm.colorName ? ' · ' + esc(tm.colorName) + ' 조끼' : '') + (d.at ? '<small>마지막 수정 ' + agoMs(d.at) + '</small>' : '');
+    $('#decoClear').hidden = !img;
+    $('#decoFit').hidden = !dz.src || !img;
+    $$('#decoFit [data-fit]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.fit === dz.fit)); });
+    var inp = $('#decoName'); inp.placeholder = tm.baseName;
+    $('#decoCount').textContent = inp.value.length + ' / 12';
+    var nm = t(inp.value) || tm.baseName;
+    var nxt = M.matches.filter(function (m) { return m.status !== 'done' && involves(m, c); })[0];
+    var opp = nxt ? (nxt.home.code === c ? nxt.away.code : nxt.home.code) : null;
+    if (!opp) opp = c === 'A1' ? 'A2' : 'A1';
+    var me = img ? '<span class="badge lg has-img" style="background-image:url(&quot;' + img + '&quot;)' + (tm.color ? ';--vest:' + tm.color : '') + '" aria-hidden="true"></span>' : badge(c, 'lg');
+    $('#decoPrev').innerHTML = '<span class="deco-prev-label">경기 화면에서는 이렇게 보입니다</span>' +
+      '<div class="deco-prev-row"><div class="deco-prev-team">' + me + '<span>' + esc(nm) + '</span></div><span class="deco-prev-vs">VS</span>' +
+      '<div class="deco-prev-team r">' + badge(opp, 'lg') + '<span>' + esc(M.teams[opp].name) + '</span></div></div>';
+    var dirty = dz.img !== undefined || (dz.name != null && t(dz.name) !== t(d.name));
+    var lk = DECO.locked;
+    $('#decoLocked').hidden = !lk;
+    $$('#decoForm input, #decoForm button').forEach(function (x) { x.disabled = lk || dz.busy; });
+    $('#decoForm').classList.toggle('is-locked', lk);
+    $('#decoSave').disabled = lk || dz.busy || !dirty;
+    $('#decoSave').innerHTML = dz.busy ? '<span class="spin" aria-hidden="true"></span>저장하고 있습니다' : icon('check') + '저장하기';
+    var msg = $('#decoMsg'); msg.textContent = dz.msg; msg.className = 'deco-msg' + (dz.kind ? ' ' + dz.kind : '');
+  }
+  function badgeInk(hex) { var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#1d1a1f' : '#ffffff'; }
+  /* 고른 사진을 정사각형 320px JPEG로 줄인다 (시트 칸 하나에 들어가게 46,000자 이하) */
+  function loadPhoto(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file || !/^image\//.test(file.type || 'image/')) { reject(new Error('사진 파일을 골라 주십시오')); return; }
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function () { URL.revokeObjectURL(u); resolve(im); };
+      im.onerror = function () { URL.revokeObjectURL(u); reject(new Error('이 사진은 열 수 없습니다. 다른 사진을 골라 주십시오')); };
+      im.src = u;
+    });
+  }
+  function squarePhoto(im, fit) {
+    var S = 320, cv = document.createElement('canvas'); cv.width = cv.height = S;
+    var x = cv.getContext('2d'), w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, S, S);
+    var k = fit === 'contain' ? Math.min(S / w, S / h) * 0.92 : Math.max(S / w, S / h);
+    var dw = w * k, dh = h * k;
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(im, (S - dw) / 2, (S - dh) / 2, dw, dh);
+    var q = 0.86, out = cv.toDataURL('image/jpeg', q);
+    while (out.length > 46000 && q > 0.45) { q -= 0.08; out = cv.toDataURL('image/jpeg', q); }
+    if (out.length > 46000) { var c2 = document.createElement('canvas'); c2.width = c2.height = 200; c2.getContext('2d').drawImage(cv, 0, 0, 200, 200); out = c2.toDataURL('image/jpeg', 0.7); }
+    return out;
+  }
+  function decoMsg(text, kind) { dz.msg = text; dz.kind = kind || ''; }
+  function saveDeco() {
+    if (dz.busy || DECO.locked || !CFG.DECO_URL) return;
+    var c = dz.team, body = { team: c, name: t($('#decoName').value) };
+    if (dz.img !== undefined) body.img = dz.img;
+    dz.busy = true; decoMsg('', ''); updateDeco();
+    fetch(CFG.DECO_URL, { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) { if (d && d.locked) DECO.locked = true; var er = new Error((d && d.error) || '저장하지 못했습니다'); er.server = true; throw er; }
+        DECO.teams[c] = d.data; DECO.v = String(d.v || DECO.v); DECO.ok = true; saveDecoCache();
+        dz = { team: c, name: null, img: undefined, src: null, fit: 'cover', busy: false, msg: '저장했습니다. 경기 화면에 바로 반영됩니다.', kind: 'ok' };
+        decoCss(); renderAll(); renderDeco(true);
+        toast(icon('check') + '<span>' + esc(M.teams[c].name) + ' · 팀 꾸미기를 저장했습니다</span>');
+      })
+      .catch(function (e) {
+        dz.busy = false;
+        decoMsg(e && e.server ? e.message : '저장하지 못했습니다. 인터넷 연결을 확인하시고 다시 눌러 주십시오.', 'err');
+        updateDeco();
+      });
   }
 
   /* ───────── 기념품 ───────── */
@@ -671,7 +856,7 @@
     M = build();
     renderTicker(); renderNotices(); renderHero(); renderFlow();
     renderBoard(); renderFilters(); renderSchedule(); renderStandings(); renderBracket(); renderRules();
-    renderScorers(); renderTeams(); renderGoods(); renderFood(); renderParty();
+    renderScorers(); renderTeams(); renderDeco(false); renderGoods(); renderFood(); renderParty();
     tickClocks();
   }
   function tick() { // 1분 단위로 바뀌는 것들 (남은 시간, 흐름)
@@ -773,7 +958,10 @@
 
   document.addEventListener('click', function (e) {
     if (e.target.matches && e.target.matches('.tbox input') && e.target.showPicker && window.matchMedia && matchMedia('(pointer: fine)').matches) { try { e.target.showPicker(); } catch (x) { /* 무시 */ } }
+    var dt = e.target.closest('[data-deco-team]');
+    if (dt) { if (dt.dataset.decoTeam !== dz.team) { pickDecoTeam(dt.dataset.decoTeam); renderDeco(true); } return; }
     var a = e.target.closest('[data-tab]');
+    if (a && a.dataset.decoPick) { pickDecoTeam(a.dataset.decoPick); renderDeco(true); }
     if (a) { e.preventDefault(); var tab = a.dataset.tab; if (location.hash !== '#' + tab) { try { history.pushState(null, '', '#' + tab); } catch (x) { /* 무시 */ } } showTab(tab); return; }
     var sc = e.target.closest('[data-scroll]');
     if (sc) { e.preventDefault(); showTab('info', { keepScroll: true }); var el = document.getElementById(sc.dataset.scroll); if (el) el.scrollIntoView({ behavior: 'smooth' }); return; }
@@ -802,16 +990,35 @@
       return;
     }
     if (e.target.closest('#sync')) { refreshNow(); return; }
+    var ft = e.target.closest('[data-fit]');
+    if (ft && dz.src) { dz.fit = ft.dataset.fit; try { dz.img = squarePhoto(dz.src, dz.fit); } catch (x) { /* 무시 */ } updateDeco(); return; }
+    if (e.target.closest('#decoClear')) { dz.img = ''; dz.src = null; decoMsg('', ''); updateDeco(); return; }
+  });
+  document.addEventListener('submit', function (e) {
+    if (e.target.id === 'decoForm') { e.preventDefault(); var i = $('#decoName'); if (i) i.blur(); saveDeco(); }
   });
   document.addEventListener('change', function (e) {
     if (e.target.id === 'calcIn' || e.target.id === 'calcOut') { calc(); return; }
+    if (e.target.id === 'decoFile') {
+      var f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      decoMsg('사진을 줄이고 있습니다…', ''); updateDeco();
+      loadPhoto(f).then(function (im) { dz.src = im; dz.fit = 'cover'; dz.img = squarePhoto(im, dz.fit); decoMsg('', ''); updateDeco(); },
+        function (er) { decoMsg(er.message, 'err'); updateDeco(); });
+      return;
+    }
     if (e.target.id === 'mine') { ui.mine = e.target.value; store.set('mine', ui.mine); renderFilters(); renderSchedule(); renderStandings(); renderTeams(); }
   });
-  document.addEventListener('input', function (e) { if (e.target.id === 'calcIn' || e.target.id === 'calcOut') calc(); });
+  document.addEventListener('input', function (e) {
+    if (e.target.id === 'calcIn' || e.target.id === 'calcOut') calc();
+    if (e.target.id === 'decoName') { dz.name = e.target.value; if (dz.kind === 'ok') decoMsg('', ''); updateDeco(); }
+  });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOverlays(); });
   window.addEventListener('hashchange', fromHash);
   window.addEventListener('popstate', fromHash);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) refreshNow(); else schedule(); });
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { refreshNow(); fetchDeco().then(scheduleDeco); } else { schedule(); scheduleDeco(); }
+  });
 
   /* 고정 영역 높이 → 스크롤 여백 */
   function measure() { var s = $('#stick'); if (s) document.documentElement.style.setProperty('--stick-h', s.offsetHeight + 'px'); }
@@ -819,6 +1026,8 @@
 
   /* ───────── 시작 ───────── */
   setPark(ui.park); calc(); measure(); fromHash();
+  decoCss();
+  if (CFG.DECO_URL) fetchDeco().then(scheduleDeco);
   if (DEMO) {
     SHEETS.forEach(function (s) { D[s] = (window.ISFC_DEMO && window.ISFC_DEMO[s]) || []; });
     loaded = true; lastOk = Date.now();
