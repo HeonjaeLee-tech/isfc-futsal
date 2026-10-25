@@ -386,10 +386,11 @@
   function calc() {
     var a = hhmm($('#calcIn').value), b = hhmm($('#calcOut').value);
     var dur = $('#calcDur'), fee = $('#calcFee');
-    if (!a || !b) { dur.textContent = '시간을 넣어주세요'; fee.textContent = '-'; return; }
+    $$('.tval').forEach(function (v) { v.textContent = hhmm($('#' + v.dataset.for).value) || '--:--'; });
+    if (!a || !b) { dur.textContent = '시간을 넣어 주십시오'; fee.textContent = '-'; return; }
     var toMin = function (s) { var p = s.split(':'); return +p[0] * 60 + +p[1]; };
     var m = toMin(b) - toMin(a);
-    if (m < 0) { dur.textContent = '나가는 시간이 더 빨라요'; fee.textContent = '-'; return; }
+    if (m < 0) { dur.textContent = '나가실 시간이 더 이릅니다'; fee.textContent = '-'; return; }
     var h = Math.floor(m / 60), mm = m % 60;
     dur.textContent = (h ? h + '시간 ' : '') + (mm ? mm + '분 ' : '') + '주차' + (m < 15 ? ' (같은 게이트로 나갈 때)' : '');
     fee.innerHTML = parkingFee(m).toLocaleString('ko-KR') + '<small>원</small>';
@@ -617,9 +618,9 @@
     $('#goods').innerHTML = '<div class="goods">' + items.map(function (r) {
       var total = num(r['총수량']) || 0, given = num(r['배부수량']) || 0, left = Math.max(0, total - given);
       var name = t(r['품목']);
-      var img = /텀블러|머그/.test(name) ? 'tumbler.jpg' : /키링|하냥/.test(name) ? 'keyring.jpg' : '';
+      var img = /텀블러|머그/.test(name) ? 'tumbler.jpg?v=20261025c' : /키링|하냥/.test(name) ? 'keyring.jpg?v=20261025c' : '';
       var alt = /텀블러|머그/.test(name) ? 'ISFC 20th ANNYV. 엠블럼이 인쇄된 흰색 머그 텀블러' : /키링|하냥/.test(name) ? 'HANYANG 유니폼을 입은 하냥이 아크릴 키링' : '';
-      return '<article class="good">' + (img ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" width="900" height="1200">' : '') +
+      return '<article class="good">' + (img ? '<img src="' + img + '" alt="' + alt + '" loading="lazy" width="900" height="1125">' : '') +
         '<div class="good-body"><div class="good-name">' + esc(name) + '</div>' +
         (total ? (left ? '<div class="good-left">' + left + '<small>/ ' + total + ' 남음</small></div>' : '<div class="soldout">모두 소진되었습니다</div>') +
           '<div class="meter" role="img" aria-label="' + total + '개 중 ' + left + '개 남음"><i style="width:' + (total ? Math.round(left / total * 100) : 0) + '%"></i></div>' : '') +
@@ -771,6 +772,7 @@
   function closeOverlays() { $('#noticeSheet').hidden = true; $('#zoom').hidden = true; }
 
   document.addEventListener('click', function (e) {
+    if (e.target.matches && e.target.matches('.tbox input') && e.target.showPicker && window.matchMedia && matchMedia('(pointer: fine)').matches) { try { e.target.showPicker(); } catch (x) { /* 무시 */ } }
     var a = e.target.closest('[data-tab]');
     if (a) { e.preventDefault(); var tab = a.dataset.tab; if (location.hash !== '#' + tab) { try { history.pushState(null, '', '#' + tab); } catch (x) { /* 무시 */ } } showTab(tab); return; }
     var sc = e.target.closest('[data-scroll]');
@@ -802,6 +804,7 @@
     if (e.target.closest('#sync')) { refreshNow(); return; }
   });
   document.addEventListener('change', function (e) {
+    if (e.target.id === 'calcIn' || e.target.id === 'calcOut') { calc(); return; }
     if (e.target.id === 'mine') { ui.mine = e.target.value; store.set('mine', ui.mine); renderFilters(); renderSchedule(); renderStandings(); renderTeams(); }
   });
   document.addEventListener('input', function (e) { if (e.target.id === 'calcIn' || e.target.id === 'calcOut') calc(); });

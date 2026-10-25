@@ -28,7 +28,7 @@
 - `app.js` 시트 읽기, 순위/대진/득점왕 계산, 시계와 경기 타이머, 화면 그리기
 - `config.js` 시트 ID와 새로고침 간격
 - `demo.js` 샘플 데이터, `icons.js` 아이콘
-- 이미지: `keyvisual.jpg`, `emblem.png`, `hanyangi.png`, `map-campus.jpg`, `map-outside.jpg`, `tumbler.jpg`, `keyring.jpg`
+- 이미지: `keyvisual.jpg`, `emblem.png`, `hanyangi.png`, `map-parking.jpg`(주차 안내 지도), `tumbler.jpg`, `keyring.jpg`
 - `build_*.py` 시트 템플릿, 샘플 데이터, 아이콘 생성 스크립트 (사이트 동작엔 필요 없음)
 
 아이콘: [Phosphor Icons](https://phosphoricons.com) (MIT). 주차 요금: 한양대학교 스마트주차시스템 ERICA 주차안내 (2026.10.25 확인).
