@@ -378,7 +378,7 @@
     var th = first(function (m) { return /3/.test(m.stage) && /4/.test(m.stage); }), fi = first(function (m) { return /결승/.test(m.stage); });
     var dr = drawTime();
     var items = [
-      [dr.start, '조 추첨 (팀 제비뽑기)', dr.label + ' · 이때 안 계시면 팀 배정이 어려울 수 있습니다'],
+      [dr.start, '조 추첨 (팀 제비뽑기)', dr.label + ' · 시간에 맞춰 와 주시면 감사하겠습니다'],
       [g1 && g1.time, '조별리그', 'A조 1구장, B조 2구장 · 팀당 4경기'],
       [k1 && k1.time, '토너먼트', '각 조 1~3위 진출, 조 1위는 4강 직행'],
       [th && th.time, '3·4위전', ''],
@@ -560,7 +560,7 @@
     var s = M.settings;
     $('#rules').innerHTML =
       '<ol class="steps">' +
-        '<li><div><b>팀 정하기</b><p>' + esc(drawTime().label) + ' 현장에서 제비뽑기로 10팀을 정합니다. 이 시간에 안 계시면 팀 배정이 어려울 수 있으니 꼭 시간 맞춰 와 주십시오. 뽑는 대로 이 사이트에도 바로 공개합니다.</p></div></li>' +
+        '<li><div><b>팀 정하기</b><p>' + esc(drawTime().label) + ' 현장에서 제비뽑기로 10팀을 정합니다. 추첨이 끝난 뒤에는 팀을 맞춰 드리기가 어려울 수 있어, 번거로우시더라도 시간에 맞춰 와 주시길 부탁드립니다. 뽑는 대로 이 사이트에도 바로 공개합니다.</p></div></li>' +
         '<li><div><b>조별 풀리그</b><p>A조 5팀, B조 5팀이 같은 조의 모든 팀과 한 번씩, 팀당 4경기를 치릅니다. 경기 시간은 ' + esc(s['조별리그 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>토너먼트</b><p>각 조 1~3위가 진출합니다. 조 1위는 4강에 바로 오르고, 2위와 3위는 상대 조와 엇갈려 4강 진출전을 치릅니다. 경기 시간은 ' + esc(s['토너먼트 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>결승과 3·4위전</b><p>토너먼트에서 비기면 ' + esc(s['토너먼트 무승부'] || '승부차기') + '로 승부를 가립니다.</p></div></li>' +
@@ -606,7 +606,7 @@
       var dr = drawTime(), open = at(dr.start), left = open ? open - now() : 0;
       var cd = '';
       if (left > 0) { var dd = Math.floor(left / 864e5), hh = Math.floor(left % 864e5 / 36e5), mi = Math.floor(left % 36e5 / 6e4); cd = '<div class="cd">' + (dd ? dd + '일 ' : '') + hh + '시간 ' + mi + '분</div><p>조 추첨까지 남은 시간</p>'; }
-      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>' + esc(dr.label) + ' 현장에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. <b>이 시간에 안 계시면 팀 배정이 어려울 수 있으니</b> 꼭 시간 맞춰 와 주십시오. 정해지는 대로 이곳에 바로 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
+      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>' + esc(dr.label) + ' 현장에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 추첨이 끝난 뒤에는 팀을 맞춰 드리기가 어려울 수 있어, 번거로우시더라도 시간에 맞춰 와 주시길 부탁드립니다. 정해지는 대로 이곳에 바로 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
       return;
     }
     var html = ['A', 'B'].map(function (g) {
