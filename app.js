@@ -106,7 +106,7 @@
   var loaded = false, lastOk = 0, failing = false, lastSig = '';
   var prevScores = null, prevNotice = null;
   var ui = {
-    tab: 'info', sub: 'schedule', filter: 'all',
+    tab: 'info', sub: 'schedule', filter: store.get('filter') || 'all', pickMine: false,
     mine: store.get('mine') || '', park: store.get('park') || 'in'
   };
 
@@ -357,6 +357,7 @@
     var d = dday(), el = $('#heroDday');
     var dd = d > 0 ? 'D-' + d : d === 0 ? 'D-DAY' : '종료';
     el.innerHTML = '<span class="dd">' + dd + '</span>' + (d === 0 ? '오늘입니다! 10월 31일 토요일' : '10월 31일 토요일');
+    var hf = $('#heroFirst'), m1 = M.matches.filter(function (m) { return hhmm(m.time); })[0]; if (hf && m1) hf.textContent = '(첫 경기 ' + hhmm(m1.time) + ')';
     var hd = $('#heroDraw b'); if (hd) hd.textContent = drawTime().label.replace('~', ' ~ ') + ' 조 추첨';
     var R = partyRounds(), hp = $('#heroParty');
     if (hp && R.length) {
@@ -468,10 +469,11 @@
   /* ───────── 경기: 일정 ───────── */
   function involves(m, code) { return code && (m.home.code === code || m.away.code === code); }
   function renderFilters() {
-    var opts = [['all', '전체'], ['1구장', '1구장'], ['2구장', '2구장'], ['A', 'A조'], ['B', 'B조'], ['ko', '토너먼트']];
+    if (!M.reveal && ui.filter === 'mine') ui.filter = 'all';
+    var opts = [['all', '전체']].concat(M.reveal ? [['mine', '내 팀 경기만']] : []).concat([['1구장', '1구장'], ['2구장', '2구장'], ['A', 'A조'], ['B', 'B조'], ['ko', '토너먼트']]);
     var sel = M.reveal ? '<select class="myteam' + (ui.mine ? ' on' : '') + '" id="mine" aria-label="내 팀 경기 강조"><option value="">내 팀 고르기</option>' +
       ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5'].map(function (c) { return '<option value="' + c + '"' + (ui.mine === c ? ' selected' : '') + '>' + c + ' ' + esc(M.teams[c].name) + '</option>'; }).join('') + '</select>' : '';
-    $('#filters').innerHTML = sel + opts.map(function (o) { return '<button type="button" class="chip" data-filter="' + o[0] + '" aria-pressed="' + (ui.filter === o[0]) + '">' + o[1] + '</button>'; }).join('');
+    $('#filters').innerHTML = sel + opts.map(function (o) { return '<button type="button" class="chip' + (o[0] === 'mine' ? ' chip-mine' : '') + '" data-filter="' + o[0] + '" aria-pressed="' + (ui.filter === o[0]) + '">' + (o[0] === 'mine' ? icon('star-fill') : '') + o[1] + '</button>'; }).join('');
   }
   function matchRow(m) {
     var hw = m.win && m.win === m.home.code, aw = m.win && m.win === m.away.code;
@@ -486,18 +488,51 @@
         '<div class="m-team' + (hw ? ' lose' : '') + (m.away.code ? '' : ' tbd') + '">' + badge(m.away.code) + '<span class="nm">' + side(m.away) + hint(m.away) + '</span></div>' +
       '</div>' + matchGoals(m) + (m.memo ? '<div class="m-note">' + esc(m.memo) + '</div>' : '') + '</div>';
   }
+  /* 내 팀 경기만 보기: 팀 고르기 화면과 요약 */
+  function minePicker() {
+    return '<div class="mine-pick"><b>내 팀을 골라 주십시오</b><p>고르신 팀의 경기만 시간 순서대로 보여 드립니다. 이 폰에 기억해 두니 다음에 들어오셔도 그대로입니다.</p>' +
+      ['A', 'B'].map(function (g) {
+        return '<div class="mine-row"><span class="deco-g">' + g + '조</span><div class="mine-grid">' + [1, 2, 3, 4, 5].map(function (i) {
+          var c = g + i; return '<button type="button" class="deco-tile" data-mine-set="' + c + '" aria-pressed="' + (ui.mine === c) + '">' + badge(c) + '<span>' + esc(M.teams[c].name) + '</span></button>';
+        }).join('') + '</div></div>';
+      }).join('') + '</div>';
+  }
+  function mineSummary(list) {
+    var c = ui.mine, tm = M.teams[c], left = list.filter(function (m) { return m.status !== 'done'; });
+    var live = list.filter(function (m) { return m.status === 'live'; })[0], nxt = left.filter(function (m) { return m.status === 'sched'; })[0];
+    var rec = { w: 0, d: 0, l: 0 };
+    list.forEach(function (m) {
+      if (m.status !== 'done' || m.hg == null || m.ag == null) return;
+      var mine = m.home.code === c ? m.hg : m.ag, opp = m.home.code === c ? m.ag : m.hg;
+      if (mine > opp || (mine === opp && m.win === c)) rec.w++; else if (mine < opp || (m.win && m.win !== c)) rec.l++; else rec.d++;
+    });
+    var played = rec.w + rec.d + rec.l;
+    var line = live ? '<b class="mine-live">지금 경기 중 · ' + esc(live.court) + '</b>'
+      : nxt ? '다음 경기 <b>' + esc(nxt.time) + ' ' + esc(nxt.court) + '</b>' : '모든 경기를 마쳤습니다';
+    return '<div class="mine-sum">' + badge(c, 'lg') +
+      '<div class="mine-sum-t"><b>' + esc(tm.name) + '</b><span>' + c + ' · ' + list.length + '경기' + (played ? ' · ' + rec.w + '승 ' + rec.d + '무 ' + rec.l + '패' : '') + '</span><span>' + line + '</span></div>' +
+      '<button type="button" class="link-btn" data-mine-change>팀 바꾸기</button></div>';
+  }
   function renderSchedule() {
-    var f = ui.filter;
+    var f = ui.filter, head = '', foot = '';
+    if (f === 'mine') {
+      if (!ui.mine || ui.pickMine) { $('#schedule').innerHTML = minePicker(); return; }
+      var mineList = M.matches.filter(function (m) { return involves(m, ui.mine); });
+      head = mineSummary(mineList);
+      var koOpen = M.matches.some(function (m) { return m.ko && (!m.home.code || !m.away.code); });
+      if (koOpen) foot = '<p class="fine mine-foot">토너먼트에 오르시면 그 경기도 조별리그가 끝나는 대로 이곳에 자동으로 추가됩니다.</p>';
+    }
     var list = M.matches.filter(function (m) {
       if (f === 'all') return true;
+      if (f === 'mine') return involves(m, ui.mine);
       if (f === 'ko') return m.ko;
       if (f === 'A' || f === 'B') return m.group === f;
       return m.court === f;
     });
-    if (!list.length) { $('#schedule').innerHTML = '<div class="empty"><b>보여드릴 경기가 없습니다</b>경기 일정이 올라오면 이곳에 표시됩니다</div>'; return; }
+    if (!list.length) { $('#schedule').innerHTML = head + '<div class="empty"><b>보여드릴 경기가 없습니다</b>경기 일정이 올라오면 이곳에 표시됩니다</div>' + foot; return; }
     var slots = [], idx = {};
     list.forEach(function (m) { var k = m.time || '시간 미정'; if (!(k in idx)) { idx[k] = slots.length; slots.push({ time: k, items: [] }); } slots[idx[k]].items.push(m); });
-    $('#schedule').innerHTML = slots.map(function (s) {
+    $('#schedule').innerHTML = head + slots.map(function (s) {
       var ko = s.items.every(function (m) { return m.ko; }), st = s.items.map(function (m) { return m.stage; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(' · ');
       return '<div class="slot"><h3 class="slot-time">' + esc(s.time) + '<small>' + esc(ko ? st : '조별리그') + '</small></h3><div class="slot-list">' + s.items.map(matchRow).join('') + '</div></div>';
     }).join('');
@@ -977,7 +1012,9 @@
     var pk = e.target.closest('[data-park]'); if (pk) { setPark(pk.dataset.park); return; }
     var pr = e.target.closest('[data-preset]'); if (pr) { var v = pr.dataset.preset.split(','); $('#calcIn').value = v[0]; $('#calcOut').value = v[1]; calc(); return; }
     var sb = e.target.closest('[data-sub]'); if (sb) { showSub(sb.dataset.sub); return; }
-    var fl = e.target.closest('[data-filter]'); if (fl) { ui.filter = fl.dataset.filter; renderFilters(); renderSchedule(); return; }
+    var fl = e.target.closest('[data-filter]'); if (fl) { ui.filter = fl.dataset.filter; ui.pickMine = false; store.set('filter', ui.filter); renderFilters(); renderSchedule(); return; }
+    var ms = e.target.closest('[data-mine-set]'); if (ms) { ui.mine = ms.dataset.mineSet; ui.pickMine = false; store.set('mine', ui.mine); renderFilters(); renderSchedule(); renderStandings(); renderTeams(); var sc0 = $('#schedule'); if (sc0) sc0.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (e.target.closest('[data-mine-change]')) { ui.pickMine = true; renderSchedule(); return; }
     if (e.target.closest('#ticker') || e.target.closest('[data-open="notices"]')) { openSheet(); return; }
     var z = e.target.closest('[data-zoom]');
     if (z) {

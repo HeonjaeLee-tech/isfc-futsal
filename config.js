@@ -18,6 +18,6 @@ window.ISFC_CONFIG = {
   DECO_URL: "https://script.google.com/macros/s/AKfycbygZZg46ekcn_36BUJiIF1JXI7Ru_DmOOx4Jebi9o14OPTbaoQqKhg13vgAe1Y3aOHm_Q/exec",
   DECO_POLL_SEC: 45,          // 다른 사람이 바꾼 팀 이름·사진을 확인하는 간격(초)
 
-  // 샘플 모드에서만 쓰는 가상의 '현재 시각' (당일 15:05처럼 보이게)
-  DEMO_NOW: "2026-10-31T15:05:00+09:00"
+  // 샘플 모드에서만 쓰는 가상의 '현재 시각' (당일 14:50처럼 보이게)
+  DEMO_NOW: "2026-10-31T14:50:00+09:00"
 };

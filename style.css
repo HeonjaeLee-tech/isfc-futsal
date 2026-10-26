@@ -889,3 +889,24 @@ b, strong { font-weight: 700; }
 }
 .hero-draw .i { flex: none; width: 20px; height: 20px; margin-top: 1px; }
 .hero-draw b { display: block; font-size: 15px; margin-bottom: 1px; }
+
+/* 내 팀 경기만 보기 */
+.chip-mine .i { width: 14px; height: 14px; color: var(--gold); }
+.chip-mine[aria-pressed="true"] .i { color: var(--gold); }
+.mine-pick { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow); padding: 18px 14px 16px; display: grid; gap: 10px; }
+.mine-pick > b { font: 400 20px/1.2 var(--f-display); }
+.mine-pick > p { margin: -4px 0 4px; font-size: 13.5px; color: var(--muted); }
+.mine-row { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); align-items: center; gap: 8px; }
+.mine-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.mine-grid .deco-tile[aria-pressed="true"] { border-color: var(--brand-text); box-shadow: 0 0 0 1.5px var(--brand-text) inset; background: var(--brand-soft); }
+.mine-sum {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 14px; border-radius: var(--r-panel);
+  background: var(--board); color: var(--board-ink); box-shadow: var(--shadow);
+}
+.mine-sum-t { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.mine-sum-t > b { font: 400 20px/1.15 var(--f-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mine-sum-t > span { font-size: 12.5px; color: var(--board-muted); font-variant-numeric: tabular-nums; }
+.mine-sum-t > span b { color: var(--board-ink); }
+.mine-sum .mine-live { color: #ffb4b6; }
+.mine-sum .link-btn { color: var(--board-ink); font-size: 13px; flex: none; text-decoration: underline; text-underline-offset: 3px; }
+.mine-foot { margin-top: 14px; }
