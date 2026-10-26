@@ -469,8 +469,7 @@
   /* ───────── 경기: 일정 ───────── */
   function involves(m, code) { return code && (m.home.code === code || m.away.code === code); }
   function renderFilters() {
-    if (!M.reveal && ui.filter === 'mine') ui.filter = 'all';
-    var opts = [['all', '전체']].concat(M.reveal ? [['mine', '내 팀 경기만']] : []).concat([['1구장', '1구장'], ['2구장', '2구장'], ['A', 'A조'], ['B', 'B조'], ['ko', '토너먼트']]);
+    var opts = [['all', '전체'], ['mine', '내 팀 경기만']].concat([['1구장', '1구장'], ['2구장', '2구장'], ['A', 'A조'], ['B', 'B조'], ['ko', '토너먼트']]);
     var sel = M.reveal ? '<select class="myteam' + (ui.mine ? ' on' : '') + '" id="mine" aria-label="내 팀 경기 강조"><option value="">내 팀 고르기</option>' +
       ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5'].map(function (c) { return '<option value="' + c + '"' + (ui.mine === c ? ' selected' : '') + '>' + c + ' ' + esc(M.teams[c].name) + '</option>'; }).join('') + '</select>' : '';
     $('#filters').innerHTML = sel + opts.map(function (o) { return '<button type="button" class="chip' + (o[0] === 'mine' ? ' chip-mine' : '') + '" data-filter="' + o[0] + '" aria-pressed="' + (ui.filter === o[0]) + '">' + (o[0] === 'mine' ? icon('star-fill') : '') + o[1] + '</button>'; }).join('');
@@ -515,6 +514,10 @@
   }
   function renderSchedule() {
     var f = ui.filter, head = '', foot = '';
+    if (f === 'mine' && !M.reveal) {
+      $('#schedule').innerHTML = '<div class="mine-pick"><b>조 추첨이 끝나면 열립니다</b><p>' + esc(drawTime().label) + ' 조 추첨으로 팀이 정해지면 이곳에서 내 팀을 고르실 수 있습니다. 고르시면 그 팀 경기만 시간 순서대로 모아서 보여 드립니다.</p></div>';
+      return;
+    }
     if (f === 'mine') {
       if (!ui.mine || ui.pickMine) { $('#schedule').innerHTML = minePicker(); return; }
       var mineList = M.matches.filter(function (m) { return involves(m, ui.mine); });
