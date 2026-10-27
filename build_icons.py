@@ -9,8 +9,9 @@ REGULAR = """map-pin soccer-ball trophy users-three gift fork-knife beer-stein m
 person-simple-walk clock calendar-blank map-trifold arrow-square-out caret-right caret-down x warning
 medal broadcast flag-checkered timer coins barricade copy check lock-simple t-shirt tree-structure
 ranking info arrow-right navigation-arrow siren confetti receipt hourglass-medium magnifying-glass-plus
-instagram-logo list-numbers crown-simple palette image pencil-simple trash""".split()
-FILL = "star soccer-ball trophy megaphone siren crown-simple map-pin car".split()
+instagram-logo list-numbers crown-simple palette image pencil-simple trash
+key toilet shuffle arrow-clockwise magnifying-glass door-open""".split()
+FILL = "star soccer-ball trophy megaphone siren crown-simple map-pin car key sparkle".split()
 
 def inner(path):
     s = path.read_text(encoding="utf-8")

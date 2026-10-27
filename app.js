@@ -10,7 +10,7 @@
   var SHEETS = ['공지', '경기', '득점', '팀', '선수', '기념품', '안주', '뒤풀이', '설정'];
   var FAST = ['공지', '경기', '득점'];
   var SLOW = ['팀', '선수', '기념품', '안주', '뒤풀이', '설정'];
-  var TABS = ['info', 'match', 'scorers', 'teams', 'deco', 'goods', 'food', 'party'];
+  var TABS = ['info', 'draw', 'match', 'scorers', 'teams', 'deco', 'wc', 'goods', 'food', 'party'];
   var CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5'];
   var VEST = { 빨강: '#d63a3a', 주황: '#f08a24', 노랑: '#f2c94c', 연두: '#9bd35a', 초록: '#2e8b57', 하늘: '#5bc0eb', 파랑: '#2f6fdb', 남색: '#1f2f6b', 보라: '#7e57c2', 분홍: '#f06fa4', 검정: '#2b2b2b', 흰색: '#f4f4f4', 회색: '#9e9e9e' };
 
@@ -118,7 +118,11 @@
   function build() {
     var settings = {};
     D['설정'].forEach(function (r) { if (r['항목']) settings[r['항목']] = r['값'] || ''; });
-    var reveal = /^(o|ㅇ|y|yes|공개|true)$/i.test(t(settings['팀공개']));
+    // 조 추첨: 설정의 조추첨 시각이 지나면 자동으로 팀이 정해지고 공개된다
+    var drawRoster = drawRosterFrom(settings), dAt = at(drawTimeFrom(settings).start);
+    // 추첨 장면이 도는 동안에는 다른 화면에 결과를 미리 보여 주지 않는다
+    var drawDone = !!(dAt && now() >= dAt && drawRoster.length) && !DR.pending && !(DR.run && DR.run.mode === 'real');
+    var reveal = /^(o|ㅇ|y|yes|공개|true)$/i.test(t(settings['팀공개'])) || drawDone;
 
     var teams = {};
     D['팀'].forEach(function (r) {
@@ -135,8 +139,19 @@
       tm.img = !!(dc && dc.img);
     });
 
-    var players = D['선수'].filter(function (r) { return t(r['이름']); }).map(function (r) {
+    var sheetPlayers = D['선수'].filter(function (r) { return t(r['이름']); }).map(function (r) {
       return { name: t(r['이름']), year: t(r['학번']).replace(/학번$/, ''), kind: t(r['구분']).toUpperCase(), team: t(r['팀코드']).toUpperCase(), memo: t(r['메모']) };
+    });
+    // 추첨 결과가 기본, 선수 시트에 적은 줄은 그 사람만 덮어쓴다 (추첨 뒤 팀 옮기기, 추가 인원)
+    var players = [];
+    if (drawDone && !DEMO) {
+      var dres = computeDraw(drawRoster);
+      players = drawRoster.map(function (p) { return { name: p.n, year: '', kind: p.kind, team: dres.assign[p.n] || '', memo: '' }; });
+    }
+    sheetPlayers.forEach(function (sp) {
+      var ex = null; players.forEach(function (p) { if (p.name === sp.name) ex = p; });
+      if (!ex) { players.push(sp); return; }
+      if (sp.team) ex.team = sp.team; if (sp.kind) ex.kind = sp.kind; if (sp.year) ex.year = sp.year; if (sp.memo) ex.memo = sp.memo;
     });
     var pBy = {}; players.forEach(function (p) { pBy[p.name] = p; });
 
@@ -236,7 +251,7 @@
 
     var party = {}; D['뒤풀이'].forEach(function (r) { if (r['항목']) party[t(r['항목'])] = t(r['내용']); });
 
-    return { settings: settings, reveal: reveal, teams: teams, players: players, pBy: pBy, matches: matches, byNo: byNo, S: S, goals: goals, scorers: scorers, notices: notices, goods: D['기념품'], food: D['안주'], party: party };
+    return { settings: settings, reveal: reveal, drawRoster: drawRoster, drawAt: dAt, drawDone: drawDone, teams: teams, players: players, pBy: pBy, matches: matches, byNo: byNo, S: S, goals: goals, scorers: scorers, notices: notices, goods: D['기념품'], food: D['안주'], party: party };
   }
 
   /* ───────── 공통 조각 ───────── */
@@ -347,8 +362,9 @@
     return r;
   }
   /* 조 추첨 시간: 설정 시트 '조추첨' (예: 12:40~13:00). 예전 '개회식' 칸도 읽는다 */
-  function drawTime() {
-    var s = t(M.settings['조추첨'] || M.settings['개회식'] || '12:40~13:00');
+  function drawTime() { return drawTimeFrom(M.settings); }
+  function drawTimeFrom(st) {
+    var s = t(st['조추첨'] || st['개회식'] || '12:40~13:00');
     var m = s.match(/(\d{1,2}\s*:\s*\d{2})(?:[^\d]+(\d{1,2}\s*:\s*\d{2}))?/);
     var a = m ? hhmm(m[1]) : '12:40', b = m && m[2] ? hhmm(m[2]) : '';
     return { start: a, end: b, label: b ? a + '~' + b : a };
@@ -572,23 +588,25 @@
     var sf = ko.filter(function (m) { return /4\s*강/.test(m.stage) && !/진출/.test(m.stage); });
     var th = ko.filter(function (m) { return /3/.test(m.stage) && /4/.test(m.stage) && /위/.test(m.stage); })[0];
     var fi = ko.filter(function (m) { return /결승/.test(m.stage); })[0];
-    var champ = '';
-    if (fi && fi.win) {
-      var lose = fi.win === fi.home.code ? fi.away.code : fi.home.code;
-      var third = th && th.win;
-      champ = '<div class="champion">' + icon('trophy-fill') + '<div><b>우승 ' + esc(M.teams[fi.win].name) + '</b><div style="font-size:13px;opacity:.85">준우승 ' + esc(M.teams[lose].name) + (third ? ' · 3위 ' + esc(M.teams[third].name) : '') + '</div></div></div>';
-    }
-    $('#bracket').innerHTML = champ +
-      '<div class="bracket-scroll"><div class="bracket">' +
-        '<div class="br-head" style="grid-column:1">4강 진출전</div><div class="br-head" style="grid-column:3">4강</div><div class="br-head" style="grid-column:5">결승</div>' +
-        '<div style="grid-column:1;grid-row:2/4;align-self:center">' + bm(r1[0]) + '</div>' +
-        '<div style="grid-column:1;grid-row:4/6;align-self:center">' + bm(r1[1]) + '</div>' +
-        '<div class="br-line" style="grid-column:2;grid-row:2/4"></div><div class="br-line" style="grid-column:2;grid-row:4/6"></div>' +
-        '<div style="grid-column:3;grid-row:2/4;align-self:center">' + bm(sf[0]) + '</div>' +
-        '<div style="grid-column:3;grid-row:4/6;align-self:center">' + bm(sf[1]) + '</div>' +
-        '<div class="br-join" style="grid-column:4;grid-row:2/6"></div>' +
-        '<div style="grid-column:5;grid-row:2/6;align-self:center">' + bm(fi, 'final') + '</div>' +
-      '</div></div>' +
+    var lose = fi && fi.win ? (fi.win === fi.home.code ? fi.away.code : fi.home.code) : null, third = th && th.win;
+    var top = fi && fi.win
+      ? '<small>우승</small><b>' + esc(M.teams[fi.win].name) + '</b><span>준우승 ' + esc(M.teams[lose].name) + (third ? ' · 3위 ' + esc(M.teams[third].name) : '') + '</span>'
+      : '<small>정상에 오를 팀은?</small><b>' + (fi ? esc(fi.time) + ' 결승' : '결승') + '</b>';
+    var on = function (m) { return m && m.win ? ' on' : ''; };
+    $('#bracket').innerHTML =
+      '<div class="vb' + (fi && fi.win ? ' crowned' : '') + '">' +
+        '<div class="vb-top"><div class="vb-cup">' + icon('trophy-fill') + '</div><div class="vb-champ">' + top + '</div></div>' +
+        '<div class="vb-stem' + on(fi) + '"></div>' +
+        '<div class="vb-lab"><span>결승</span></div>' +
+        '<div class="vb-one">' + bm(fi, 'final') + '</div>' +
+        '<div class="vb-fork"><i class="l' + on(sf[0]) + '"></i><i class="r' + on(sf[1]) + '"></i><b class="' + (on(sf[0]) || on(sf[1]) ? 'on' : '') + '"></b></div>' +
+        '<div class="vb-lab"><span>4강</span></div>' +
+        '<div class="vb-two">' + bm(sf[0]) + bm(sf[1]) + '</div>' +
+        '<div class="vb-legs"><i class="' + on(r1[0]) + '"></i><i class="' + on(r1[1]) + '"></i></div>' +
+        '<div class="vb-lab"><span>4강 진출전</span></div>' +
+        '<div class="vb-two">' + bm(r1[0]) + bm(r1[1]) + '</div>' +
+        '<p class="vb-note">' + icon('arrow-right') + '아래에서 위로 올라갑니다. 각 조 1위는 4강에서 기다립니다.</p>' +
+      '</div>' +
       '<div class="third"><div class="br-head">3·4위전</div>' + bm(th) + '</div>' +
       '<p class="fine">조별리그가 끝나면 "A조 2위" 같은 자리에 실제 팀이 자동으로 들어갑니다.</p>';
   }
@@ -843,6 +861,368 @@
       });
   }
 
+  /* ───────── 조 추첨 ─────────
+   * 명단(draw.js) + 설정 시트의 '추첨 제외' / '추첨 추가'로 참가자를 정하고,
+   * 조추첨 시각이 되면 모든 폰이 같은 씨앗값으로 같은 결과를 계산해 보여 준다. */
+  var DD = window.ISFC_DRAW || { names: [], k: {} };
+  var DSALT = 'isfc20·obyb', DSEED = 'ISFC20-OBYB-' + CFG.EVENT_DATE;
+  var DRAWTEST = /[?&]drawtest=1/.test(location.search);
+  function fnv(s) { var h = 0x811c9dc5; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
+  function seeded(str) {
+    var a = fnv(str) || 1;
+    return function () { a = a + 0x6D2B79F5 | 0; var x = Math.imul(a ^ a >>> 15, 1 | a); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+  }
+  function shuffled(arr, R) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(R() * (i + 1)), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+  function nameList(s) { return t(s).split(/[\s,，、\/·]+/).map(t).filter(Boolean); }
+  function drawRosterFrom(st) {
+    var ex = nameList(st['추첨 제외']), add = nameList(st['추첨 추가']), seen = {}, list = [];
+    DD.names.forEach(function (p) { if (ex.indexOf(p[0]) < 0 && !seen[p[0]]) { seen[p[0]] = 1; list.push({ n: p[0], kind: p[1] || '' }); } });
+    add.forEach(function (n) { if (ex.indexOf(n) < 0 && !seen[n]) { seen[n] = 1; list.push({ n: n, kind: '' }); } });
+    list.sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : 0; });
+    return list;
+  }
+  var drawMemo = {};
+  function computeDraw(list, seed) {
+    var key = (seed || DSEED) + '|' + list.map(function (p) { return p.n; }).join(',');
+    if (drawMemo[key]) return drawMemo[key];
+    var R = seeded(key), T = CODES.length, n = list.length;
+    var ps = list.map(function (p) { var v = DD.k[fnv(DSALT + p.n).toString(16)]; if (v == null) v = 30; return { n: p.n, ob: p.kind === 'OB', s: v % 100, g: v >= 100, r: R() }; });
+    ps.sort(function (a, b) { return (b.s - a.s) || (a.r - b.r); });
+    var obAll = 0; ps.forEach(function (p) { if (p.ob) obAll++; });
+    var tm = {}; CODES.forEach(function (c) { tm[c] = { ob: 0, sum: 0, g: 0, x: 0 }; });
+    var assign = {};
+    for (var st = 0; st < n; st += T) {
+      var pot = ps.slice(st, st + T), best = null, bestCost = Infinity, obExp = obAll / n * ((st + pot.length) / T);
+      for (var tr = 0; tr < 500; tr++) {
+        var perm = shuffled(CODES, R), cost = 0, sumA = 0, sumB = 0, xA = 0, xB = 0, mean = 0, k = {};
+        CODES.forEach(function (c) { k[c] = { ob: tm[c].ob, sum: tm[c].sum, g: tm[c].g, x: tm[c].x }; });
+        for (var i = 0; i < pot.length; i++) { var p = pot[i], q = k[perm[i]]; if (p.ob) q.ob++; q.sum += p.s; if (p.g) q.g++; if (p.s >= 70) q.x++; }
+        CODES.forEach(function (c) { mean += k[c].sum; }); mean = mean / T;
+        CODES.forEach(function (c) {
+          var q2 = k[c], d1 = q2.ob - obExp, d2 = (q2.sum - mean) / 10;
+          cost += d1 * d1 * 3 + d2 * d2;
+          if (q2.g > 1) cost += 60 * (q2.g - 1);
+          if (q2.x > 1) cost += 5000;
+          if (c.charAt(0) === 'A') { sumA += q2.sum; xA += q2.x; } else { sumB += q2.sum; xB += q2.x; }
+        });
+        var d3 = (sumA - sumB) / 10; cost += d3 * d3 * 0.4;
+        if (xA > 2 || xB > 2) cost += 5000;
+        if (cost < bestCost) { bestCost = cost; best = perm; }
+      }
+      for (var j = 0; j < pot.length; j++) { var pp = pot[j], c2 = best[j], qq = tm[c2]; assign[pp.n] = c2; if (pp.ob) qq.ob++; qq.sum += pp.s; if (pp.g) qq.g++; if (pp.s >= 70) qq.x++; }
+    }
+    var order = shuffled(list.map(function (p) { return p.n; }), R);
+    var teams = {}; CODES.forEach(function (c) { teams[c] = []; });
+    order.forEach(function (nm) { teams[assign[nm]].push(nm); });
+    return (drawMemo[key] = { assign: assign, order: order, teams: teams, n: n });
+  }
+  function drawRes() { return computeDraw(M.drawRoster); }
+
+  /* 추첨기: 이름이 적힌 공이 유리 통 안에서 굴러다닌다 */
+  var BALLC = [['#741243', '#ffffff'], ['#A35E88', '#ffffff'], ['#BEE0A9', '#1d2a17'], ['#F2C14E', '#2a2000'], ['#F4EFE6', '#2b2329'], ['#3a2f3e', '#f4efe6']];
+  function mixHex(hex, to, k) {
+    var a = parseInt(hex.slice(1), 16), b = to === 'w' ? 255 : 0;
+    var r = (a >> 16) & 255, g = (a >> 8) & 255, bl = a & 255;
+    return 'rgb(' + Math.round(r + (b - r) * k) + ',' + Math.round(g + (b - g) * k) + ',' + Math.round(bl + (b - bl) * k) + ')';
+  }
+  function Machine(cv) {
+    this.cv = cv; this.ctx = cv.getContext('2d'); this.balls = []; this.outs = []; this.sparks = []; this.m = 'idle'; this.raf = 0; this.t = 0; this.last = 0; this.w = 0;
+    this.reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.sprites = {}; this.resize();
+  }
+  Machine.prototype.resize = function () {
+    var w = this.cv.clientWidth || 320; if (w === this.w) return;
+    var h = Math.round(w * 0.92), d = Math.min(window.devicePixelRatio || 1, 2), ow = this.w, ocx = this.cx, ocy = this.cy, oR = this.R;
+    this.cv.width = Math.round(w * d); this.cv.height = Math.round(h * d); this.cv.style.height = h + 'px';
+    this.w = w; this.h = h; this.d = d; this.cx = w / 2; this.cy = h * 0.53; this.R = Math.min(w * 0.43, h * 0.43);
+    this.rb = Math.max(11, Math.min(18, this.R * 0.1)); this.sprites = {};
+    var self = this;
+    this.balls.forEach(function (b) { if (ow) { b.x = self.cx + (b.x - ocx) * self.R / oR; b.y = self.cy + (b.y - ocy) * self.R / oR; } else self.place(b); });
+  };
+  Machine.prototype.place = function (b) { var a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * (this.R - this.rb) * 0.85; b.x = this.cx + Math.cos(a) * r; b.y = this.cy + Math.sin(a) * r; };
+  Machine.prototype.sync = function (names) {
+    var want = {}, have = {}, self = this;
+    names.forEach(function (n) { want[n] = 1; });
+    this.balls = this.balls.filter(function (b) { return want[b.n]; });
+    this.balls.forEach(function (b) { have[b.n] = 1; });
+    names.forEach(function (n) { if (!have[n]) { var b = { n: n, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, c: BALLC[fnv(n) % BALLC.length], rot: Math.random() * 6.283 }; self.place(b); self.balls.push(b); } });
+  };
+  Machine.prototype.pick = function (n) {
+    for (var i = 0; i < this.balls.length; i++) if (this.balls[i].n === n) { var b = this.balls.splice(i, 1)[0]; b.t = 0; b.sx = b.x; b.sy = b.y; this.outs.push(b); return; }
+  };
+  Machine.prototype.burst = function () {
+    for (var i = 0; i < 70; i++) { var a = Math.random() * 6.283, s = 2 + Math.random() * 6; this.sparks.push({ x: this.cx, y: this.cy - this.R * 0.2, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2.5, life: 1, c: BALLC[i % 4][0] }); }
+  };
+  Machine.prototype.sprite = function (c) {
+    var key = c[0]; if (this.sprites[key]) return this.sprites[key];
+    var r = this.rb, d = this.d, cv = document.createElement('canvas'), sz = Math.ceil((r * 2 + 2) * d);
+    cv.width = cv.height = sz;
+    var x = cv.getContext('2d'); x.scale(d, d);
+    var g = x.createRadialGradient(r * 0.75, r * 0.65, r * 0.1, r + 1, r + 1, r);
+    g.addColorStop(0, mixHex(c[0], 'w', 0.45)); g.addColorStop(0.6, c[0]); g.addColorStop(1, mixHex(c[0], 'b', 0.35));
+    x.fillStyle = g; x.beginPath(); x.arc(r + 1, r + 1, r, 0, 6.283); x.fill();
+    x.fillStyle = 'rgba(255,255,255,.38)'; x.beginPath(); x.ellipse(r * 0.78, r * 0.6, r * 0.4, r * 0.2, -0.6, 0, 6.283); x.fill();
+    return (this.sprites[key] = cv);
+  };
+  Machine.prototype.step = function (k) {
+    var mix = this.m === 'mix', cx = this.cx, cy = this.cy, rb = this.rb, R = this.R - rb, bs = this.balls, n = bs.length, i, j;
+    var g = (mix ? 0.34 : 0.1) * k, jet = (mix ? 1.3 : 0.3) * k, swirl = (mix ? 0.0011 : 0.0004) * k, maxV = mix ? 10 : 3.4;
+    for (i = 0; i < n; i++) {
+      var b = bs[i], dx = b.x - cx, dy = b.y - cy;
+      b.vy += g;
+      if (dy > R * 0.25) { b.vy -= jet * (0.5 + Math.random()); b.vx += (Math.random() - 0.5) * jet * 1.7; }
+      b.vx += -dy * swirl; b.vy += dx * swirl;
+      var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy); if (sp > maxV) { b.vx *= maxV / sp; b.vy *= maxV / sp; }
+      b.vx *= 0.995; b.vy *= 0.995;
+      b.x += b.vx * k; b.y += b.vy * k;
+      dx = b.x - cx; dy = b.y - cy;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > R) { var nx = dx / dist, ny = dy / dist, vn = b.vx * nx + b.vy * ny; b.x = cx + nx * R; b.y = cy + ny * R; if (vn > 0) { b.vx -= 1.85 * vn * nx; b.vy -= 1.85 * vn * ny; } }
+      b.rot += b.vx * 0.05 * k;
+    }
+    var d2 = 4 * rb * rb;
+    for (i = 0; i < n; i++) for (j = i + 1; j < n; j++) {
+      var a = bs[i], c = bs[j], ex = c.x - a.x, ey = c.y - a.y, q = ex * ex + ey * ey;
+      if (q < d2 && q > 0.0001) {
+        var dd = Math.sqrt(q), ux = ex / dd, uy = ey / dd, ov = (2 * rb - dd) / 2;
+        a.x -= ux * ov; a.y -= uy * ov; c.x += ux * ov; c.y += uy * ov;
+        var rv = (c.vx - a.vx) * ux + (c.vy - a.vy) * uy;
+        if (rv < 0) { var imp = rv * 0.92; a.vx += imp * ux; a.vy += imp * uy; c.vx -= imp * ux; c.vy -= imp * uy; }
+      }
+    }
+    for (i = this.outs.length - 1; i >= 0; i--) { this.outs[i].t += 0.04 * k; if (this.outs[i].t >= 1) this.outs.splice(i, 1); }
+    for (i = this.sparks.length - 1; i >= 0; i--) { var s = this.sparks[i]; s.vy += 0.15 * k; s.x += s.vx * k; s.y += s.vy * k; s.life -= 0.018 * k; if (s.life <= 0) this.sparks.splice(i, 1); }
+  };
+  Machine.prototype.ball = function (b, x0, y0, sc, alpha, ta) {
+    var x = this.ctx, rb = this.rb * sc, sp = this.sprite(b.c);
+    x.globalAlpha = alpha; x.drawImage(sp, x0 - rb - sc, y0 - rb - sc, (rb + sc) * 2, (rb + sc) * 2);
+    x.save(); x.translate(x0, y0); x.rotate(Math.sin(b.rot) * 0.55); if (sc !== 1) x.scale(sc, sc);
+    x.globalAlpha = alpha * ta; x.fillStyle = b.c[1]; x.fillText(b.n, 0, 0.5); x.restore();
+  };
+  Machine.prototype.draw = function () {
+    var x = this.ctx, d = this.d, w = this.w, h = this.h, cx = this.cx, cy = this.cy, R = this.R, rb = this.rb, mix = this.m === 'mix', i, k;
+    x.setTransform(d, 0, 0, d, 0, 0); x.clearRect(0, 0, w, h); x.globalAlpha = 1;
+    var gl = x.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 1.25);
+    gl.addColorStop(0, mix ? 'rgba(242,193,78,.22)' : 'rgba(242,193,78,.12)'); gl.addColorStop(1, 'rgba(242,193,78,0)');
+    x.fillStyle = gl; x.fillRect(0, 0, w, h);
+    var gb = x.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
+    gb.addColorStop(0, 'rgba(255,255,255,.12)'); gb.addColorStop(1, 'rgba(255,255,255,.025)');
+    x.fillStyle = gb; x.beginPath(); x.arc(cx, cy, R, 0, 6.283); x.fill();
+    x.save(); x.beginPath(); x.arc(cx, cy, R, 0, 6.283); x.clip();
+    x.strokeStyle = 'rgba(255,255,255,.05)'; x.lineWidth = R * 0.12;
+    for (k = 0; k < 6; k++) { var an = this.t * (mix ? 1.2 : 0.25) + k * 1.047; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(an) * R, cy + Math.sin(an) * R); x.stroke(); }
+    x.font = '700 ' + Math.max(7, Math.round(rb * 0.6)) + 'px "IBM Plex Sans KR", system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    for (i = 0; i < this.balls.length; i++) { var b = this.balls[i]; this.ball(b, b.x, b.y, 1, mix ? 0.96 : 0.82, mix ? 0.9 : 0.6); }
+    x.restore(); x.globalAlpha = 1;
+    var rim = x.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+    rim.addColorStop(0, 'rgba(242,193,78,.95)'); rim.addColorStop(0.5, 'rgba(255,255,255,.35)'); rim.addColorStop(1, 'rgba(163,94,136,.95)');
+    x.strokeStyle = rim; x.lineWidth = 3; x.beginPath(); x.arc(cx, cy, R + 1.5, 0, 6.283); x.stroke();
+    x.strokeStyle = 'rgba(255,255,255,.08)'; x.lineWidth = 1; x.beginPath(); x.arc(cx, cy, R - 6, 0, 6.283); x.stroke();
+    x.fillStyle = 'rgba(255,255,255,.11)'; x.beginPath(); x.ellipse(cx - R * 0.36, cy - R * 0.52, R * 0.42, R * 0.15, -0.55, 0, 6.283); x.fill();
+    x.fillStyle = 'rgba(0,0,0,.55)'; x.beginPath(); x.ellipse(cx, cy - R, rb * 1.5, rb * 0.5, 0, 0, 6.283); x.fill();
+    x.strokeStyle = 'rgba(242,193,78,.8)'; x.lineWidth = 2; x.stroke();
+    x.font = '700 ' + Math.max(7, Math.round(rb * 0.6)) + 'px "IBM Plex Sans KR", system-ui, sans-serif';
+    for (i = 0; i < this.outs.length; i++) {
+      var o = this.outs[i], e = 1 - Math.pow(1 - Math.min(1, o.t), 3);
+      var px = o.sx + (cx - o.sx) * e, py = o.sy + (Math.max(rb * 2.2, cy - R - rb * 0.6) - o.sy) * e;
+      this.ball(o, px, py, 1 + e * 1.1, o.t > 0.7 ? Math.max(0, 1 - (o.t - 0.7) / 0.3) : 1, 1);
+    }
+    x.globalAlpha = 1;
+    for (i = 0; i < this.sparks.length; i++) { var s = this.sparks[i]; x.globalAlpha = Math.max(0, s.life); x.fillStyle = s.c; x.fillRect(s.x - 2, s.y - 2, 4, 6); }
+    x.globalAlpha = 1;
+  };
+  Machine.prototype.frame = function (ts) {
+    if (this.cv.clientWidth && this.cv.clientWidth !== this.w) this.resize();
+    var dt = this.last ? Math.min(50, ts - this.last) : 16; this.last = ts; this.t += dt / 1000;
+    var k = dt / 16.67, sub = this.m === 'mix' ? 2 : 1;
+    for (var i = 0; i < sub; i++) this.step(k / sub);
+    this.draw();
+  };
+  function drawLoop() {
+    var mc = DR.machine; if (!mc) return;
+    if (mc.reduce) { mc.resize(); mc.draw(); return; }
+    if (mc.raf) return;
+    var f = function (ts) {
+      mc.raf = 0;
+      if (ui.tab !== 'draw' || document.hidden || !document.body.contains(mc.cv)) { mc.last = 0; return; }
+      mc.frame(ts); mc.raf = requestAnimationFrame(f);
+    };
+    mc.raf = requestAnimationFrame(f);
+  }
+
+  /* 추첨 화면 상태: DR.run = 진행 중인 추첨(실제/다시 보기/연습), DR.hold = 끝난 연습 결과 */
+  var DR = { run: null, hold: null, machine: null, armed: false, fired: false, primed: false, pending: false, q: '' };
+  function drawView() {
+    if (DR.pending) return { res: drawRes(), filled: {}, mode: 'before' };
+    if (DR.run) return { res: DR.run.res, filled: DR.run.filled, mode: DR.run.mode };
+    if (DR.hold) return { res: DR.hold.res, filled: null, mode: 'practice' };
+    return { res: drawRes(), filled: M.drawDone ? null : {}, mode: M.drawDone ? 'done' : 'before' };
+  }
+  function cdText(left) {
+    if (left <= 0) return '곧 시작합니다';
+    var dd = Math.floor(left / 864e5);
+    if (dd >= 1) return 'D-' + dday() + ' · 10월 31일 ' + drawTime().start;
+    var s = Math.floor(left / 1000), p2 = function (v) { return ('0' + v).slice(-2); };
+    return p2(Math.floor(s / 3600)) + ':' + p2(Math.floor(s % 3600 / 60)) + ':' + p2(s % 60) + ' 남음';
+  }
+  function renderDraw() {
+    var box = $('#draw'); if (!box || !M) return;
+    var list = M.drawRoster;
+    if (!list.length) { box.innerHTML = '<div class="empty"><b>참가자 명단을 준비하고 있습니다</b></div>'; DR.machine = null; return; }
+    if (!$('#dmCanvas', box)) {
+      box.innerHTML =
+        '<div class="dm">' +
+          '<div class="dm-top"><span class="dm-kicker">' + icon('sparkle-fill') + 'ISFC 20th · OBYB</span><span class="dm-status" id="dmStatus"></span></div>' +
+          '<div class="dm-stage"><canvas id="dmCanvas" aria-hidden="true"></canvas><div class="dm-center" id="dmCenter"></div></div>' +
+          '<div class="dm-call" id="dmCall" aria-live="polite"></div>' +
+          '<div class="dm-ctrl" id="dmCtrl"></div>' +
+        '</div>' +
+        '<div class="dt" id="dtTeams"></div>' +
+        '<section class="dr" aria-labelledby="drTitle">' +
+          '<div class="dr-head"><h3 class="h3" id="drTitle">참가자 <b id="drCount"></b>명</h3>' +
+          '<label class="dr-search">' + icon('magnifying-glass') + '<input id="drSearch" type="search" placeholder="내 이름 찾기" autocomplete="off" enterkeyhint="search"></label></div>' +
+          '<div class="dr-list" id="drList"></div><p class="fine" id="drNote"></p>' +
+        '</section>';
+      DR.machine = new Machine($('#dmCanvas'));
+    }
+    var v = drawView();
+    var names = list.map(function (p) { return p.n; });
+    if (v.mode === 'done' || v.mode === 'practice' && !DR.run) names = [];
+    else if (DR.run) names = names.filter(function (n) { return !DR.run.filled[n]; });
+    DR.machine.sync(names);
+    DR.machine.m = DR.run && DR.run.i < DR.run.res.n ? 'mix' : 'idle';
+    updateDrawHead(v); renderDrawTeams(v); renderDrawRoster(v);
+    drawLoop();
+  }
+  function updateDrawHead(v) {
+    var st = $('#dmStatus'), ce = $('#dmCenter'), call = $('#dmCall'), ctrl = $('#dmCtrl'); if (!st) return;
+    var n = v.res.n, btns = [];
+    if (DR.run) {
+      var lbl = DR.run.mode === 'practice' ? '연습 추첨 중' : DR.run.mode === 'replay' ? '다시 보기' : '추첨 중';
+      st.innerHTML = '<i class="dot live"></i>' + lbl + ' · <b>' + DR.run.i + '</b> / ' + n;
+      ce.className = 'dm-center' + (DR.run.i ? ' hide' : ''); ce.innerHTML = '<span class="dm-big">추첨을 시작합니다</span>';
+    } else if (v.mode === 'practice') {
+      st.innerHTML = '<i class="dot"></i>연습 결과 · 실제 결과가 아닙니다';
+      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-big">연습 끝</span><span class="dm-sub">실제 추첨은 ' + esc(drawTime().start) + '에 진행됩니다</span>';
+      call.innerHTML = '';
+    } else if (v.mode === 'done') {
+      st.innerHTML = '<i class="dot ok"></i>추첨 완료';
+      ce.className = 'dm-center done'; ce.innerHTML = icon('check') + '<span class="dm-big">추첨 완료</span><span class="dm-sub">' + n + '명 · 10팀</span>';
+      call.innerHTML = '';
+      btns.push('<button type="button" class="btn btn-ghost sm" data-draw-act="replay">' + icon('arrow-clockwise') + '추첨 장면 다시 보기</button>');
+    } else {
+      st.innerHTML = '<i class="dot"></i>추첨 전';
+      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-time">' + esc(drawTime().start) + '</span><span class="dm-sub">자동 추첨</span><span class="dm-cd" id="dmCd">' + cdText(M.drawAt - now()) + '</span>';
+      call.innerHTML = '<span class="dm-hint">시간이 되면 이 화면에서 공이 하나씩 뽑혀 팀이 정해집니다</span>';
+    }
+    if (DRAWTEST && !DR.run) {
+      btns.push('<button type="button" class="btn btn-ghost sm" data-draw-act="practice">' + icon('shuffle') + '연습 추첨 돌려 보기</button>');
+      if (DR.hold) btns.push('<button type="button" class="link-btn" data-draw-act="clear">연습 결과 지우기</button>');
+    }
+    ctrl.innerHTML = btns.join(''); ctrl.hidden = !btns.length;
+  }
+  function renderDrawTeams(v) {
+    var el = $('#dtTeams'); if (!el) return;
+    var res = v.res, f = v.filled, real = v.mode === 'done';
+    el.innerHTML = ['A', 'B'].map(function (g) {
+      return '<div class="dt-group"><h3 class="group-title">' + g + '조</h3><div class="dt-grid">' + [1, 2, 3, 4, 5].map(function (i) {
+        var c = g + i, mem = res.teams[c] || [], shown = f === null ? mem.length : mem.filter(function (nm) { return f[nm]; }).length;
+        return '<article class="dt-team' + (real && ui.mine === c ? ' is-mine' : '') + (shown ? '' : ' empty') + '" data-team="' + c + '">' +
+          '<header>' + badge(c) + '<b>' + esc(M.teams[c].name) + '</b><span class="dt-cnt">' + shown + '/' + mem.length + '</span></header>' +
+          '<ol>' + mem.map(function (nm, j) { return j < shown ? '<li class="on">' + esc(nm) + '</li>' : '<li></li>'; }).join('') + '</ol></article>';
+      }).join('') + '</div></div>';
+    }).join('');
+  }
+  function renderDrawRoster(v) {
+    var el = $('#drList'); if (!el) return;
+    var list = M.drawRoster, res = v.res, f = v.filled, q = DR.q, real = v.mode === 'done';
+    $('#drCount').textContent = list.length;
+    el.innerHTML = list.map(function (p) {
+      var c = f === null || (f && f[p.n]) ? res.assign[p.n] : '';
+      return '<button type="button" class="dr-chip' + (c ? ' has' : '') + (real && c && c === ui.mine ? ' mine' : '') + '" data-pick-name="' + esc(p.n) + '"' + (q && p.n.indexOf(q) < 0 ? ' hidden' : '') + '>' +
+        esc(p.n) + (c ? '<span>' + c + '</span>' : '') + '</button>';
+    }).join('');
+    $('#drNote').textContent = real ? '내 이름을 누르시면 내 팀으로 설정되어, 경기 일정에서 내 팀 경기만 모아 보실 수 있습니다.'
+      : '추첨이 끝나면 내 이름을 눌러 내 팀을 바로 확인하실 수 있습니다.';
+  }
+  function startDraw(mode, seed) {
+    if (DR.run || !M.drawRoster.length) return;
+    var res = seed ? computeDraw(M.drawRoster, seed) : drawRes();
+    DR.hold = null;
+    DR.run = { mode: mode, res: res, i: 0, filled: {}, timer: 0 };
+    DR.pending = false;
+    renderDraw();
+    if (DR.machine) DR.machine.m = 'mix';
+    DR.run.timer = setTimeout(drawStep, 1800);
+  }
+  function drawStep() {
+    var r = DR.run; if (!r) return;
+    var res = r.res;
+    if (r.i >= res.order.length) { finishDraw(); return; }
+    var nm = res.order[r.i], c = res.assign[nm], idx = res.teams[c].indexOf(nm);
+    r.filled[nm] = c; r.i++;
+    if (DR.machine) { DR.machine.pick(nm); if (DR.machine.reduce) { DR.machine.outs = []; DR.machine.draw(); } }
+    var card = document.querySelector('.dt-team[data-team="' + c + '"]');
+    if (card) {
+      var li = card.querySelectorAll('ol li')[idx]; if (li) { li.textContent = nm; li.className = 'on pop'; }
+      var cnt = card.querySelector('.dt-cnt'); if (cnt) cnt.textContent = (idx + 1) + '/' + res.teams[c].length;
+      card.classList.remove('empty', 'flash'); void card.offsetWidth; card.classList.add('flash');
+    }
+    $$('.dr-chip').forEach(function (b) { if (b.dataset.pickName === nm) { b.classList.add('has', 'pop'); b.insertAdjacentHTML('beforeend', '<span>' + c + '</span>'); } });
+    var call = $('#dmCall');
+    if (call) { call.innerHTML = '<span class="dm-call-in">' + badge(c) + '<em>' + esc(M.teams[c].name) + '</em><b>' + esc(nm) + '</b></span>'; }
+    updateDrawHead(drawView());
+    r.timer = setTimeout(drawStep, r.i < 3 ? 850 : r.i < 8 ? 420 : 170);
+  }
+  function finishDraw() {
+    var r = DR.run; if (!r) return;
+    DR.run = null;
+    if (r.mode === 'practice') DR.hold = { res: r.res };
+    if (DR.machine) { DR.machine.m = 'idle'; DR.machine.burst(); }
+    if (r.mode === 'real') { renderAll(); toast(icon('sparkle-fill') + '<span>조 추첨이 끝났습니다! 명단에서 내 이름을 눌러 보세요</span>'); }
+    else renderDraw();
+  }
+  function tickDraw() {
+    if (!M || !M.drawAt || !M.drawRoster.length) return;
+    var left = M.drawAt - now(), cd = $('#dmCd');
+    if (cd) cd.textContent = cdText(left);
+    if (left > 0) {
+      DR.armed = true;
+      if (left < 30000 && !DR.primed) { DR.primed = true; if (!DEMO) load(SLOW); }
+      return;
+    }
+    if (!DR.armed || DR.fired) return;
+    DR.fired = true; DR.pending = true;
+    var go = function () {
+      if (DR.go) return; DR.go = true;
+      if (document.hidden) { DR.pending = false; renderAll(); return; }   // 화면을 안 보고 있으면 결과만
+      if (ui.tab !== 'draw') { showTab('draw'); try { history.replaceState(null, '', '#draw'); } catch (x) { /* 무시 */ } }
+      if (DR.run) { clearTimeout(DR.run.timer); DR.run = null; }
+      startDraw('real');
+    };
+    if (DEMO) go(); else { load(['설정']).then(go, go); setTimeout(go, 4000); }
+  }
+  function pickMyName(nm) {
+    if (!M.drawDone || DR.run || DR.hold) return;
+    var c = drawRes().assign[nm]; if (!c) return;
+    var pl = M.pBy[nm]; if (pl && pl.team) c = pl.team;
+    ui.mine = c; store.set('mine', c);
+    renderFilters(); renderSchedule(); renderStandings(); renderTeams(); renderDraw();
+    toast(icon('star-fill') + '<span>' + esc(nm) + ' 님은 <b>' + esc(M.teams[c].name) + '</b>입니다. 내 팀으로 설정했습니다</span>');
+    var card = document.querySelector('.dt-team[data-team="' + c + '"]');
+    if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+  }
+
+  /* ───────── 화장실 ───────── */
+  function renderWc() {
+    var el = $('#wc'); if (!el) return;
+    var s = M.settings, loc = t(s['화장실 위치']), key = t(s['화장실 키']) || '천막 상황 테이블', note = t(s['화장실 안내']);
+    el.innerHTML =
+      '<div class="wc-card wc-key">' + icon('key-fill') + '<div><b>화장실 건물 출입키는 ' + esc(key) + '에 있습니다</b><p>필요하실 때 가져가시고, 쓰신 뒤에는 다시 그 자리에 갖다 놓아 주십시오.</p></div></div>' +
+      '<div class="wc-card">' + icon('toilet') + '<div><b>화장실 위치</b><p>' + (loc ? esc(loc) : '위치 안내는 추후 업데이트할 예정입니다.') + '</p></div></div>' +
+      (note ? '<p class="quote">' + esc(note) + '</p>' : '');
+  }
+
   /* ───────── 기념품 ───────── */
   function renderGoods() {
     var items = M.goods.filter(function (r) { return t(r['품목']); });
@@ -903,7 +1283,7 @@
     M = build();
     renderTicker(); renderNotices(); renderHero(); renderFlow();
     renderBoard(); renderFilters(); renderSchedule(); renderStandings(); renderBracket(); renderRules();
-    renderScorers(); renderTeams(); renderDeco(false); renderGoods(); renderFood(); renderParty();
+    renderScorers(); renderTeams(); renderDeco(false); renderDraw(); renderWc(); renderGoods(); renderFood(); renderParty();
     tickClocks();
   }
   function tick() { // 1분 단위로 바뀌는 것들 (남은 시간, 흐름)
@@ -988,6 +1368,7 @@
     $$('.view').forEach(function (v) { v.hidden = v.dataset.view !== tab; });
     $$('.tabs a').forEach(function (a) { var on = a.dataset.tab === tab; a.setAttribute('aria-selected', String(on)); if (on && a.scrollIntoView) { var tr = a.parentElement; tr.scrollTo({ left: a.offsetLeft - tr.clientWidth / 2 + a.clientWidth / 2, behavior: 'smooth' }); } });
     if (!(opts && opts.keepScroll)) window.scrollTo(0, 0);
+    if (tab === 'draw') drawLoop();
   }
   function showSub(sub) {
     ui.sub = sub;
@@ -1039,6 +1420,9 @@
       return;
     }
     if (e.target.closest('#sync')) { refreshNow(); return; }
+    var da = e.target.closest('[data-draw-act]');
+    if (da) { var act = da.dataset.drawAct; if (act === 'replay') startDraw('replay'); else if (act === 'practice') startDraw('practice', 'practice-' + Date.now()); else if (act === 'clear') { DR.hold = null; renderDraw(); } return; }
+    var pn = e.target.closest('[data-pick-name]'); if (pn) { pickMyName(pn.dataset.pickName); return; }
     var ft = e.target.closest('[data-fit]');
     if (ft && dz.src) { dz.fit = ft.dataset.fit; try { dz.img = squarePhoto(dz.src, dz.fit); } catch (x) { /* 무시 */ } updateDeco(); return; }
     if (e.target.closest('#decoClear')) { dz.img = ''; dz.src = null; decoMsg('', ''); updateDeco(); return; }
@@ -1061,17 +1445,18 @@
   document.addEventListener('input', function (e) {
     if (e.target.id === 'calcIn' || e.target.id === 'calcOut') calc();
     if (e.target.id === 'decoName') { dz.name = e.target.value; if (dz.kind === 'ok') decoMsg('', ''); updateDeco(); }
+    if (e.target.id === 'drSearch') { DR.q = t(e.target.value); if (M) renderDrawRoster(drawView()); }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOverlays(); });
   window.addEventListener('hashchange', fromHash);
   window.addEventListener('popstate', fromHash);
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) { refreshNow(); fetchDeco().then(scheduleDeco); } else { schedule(); scheduleDeco(); }
+    if (!document.hidden) { refreshNow(); fetchDeco().then(scheduleDeco); drawLoop(); } else { schedule(); scheduleDeco(); }
   });
 
   /* 고정 영역 높이 → 스크롤 여백 */
   function measure() { var s = $('#stick'); if (s) document.documentElement.style.setProperty('--stick-h', s.offsetHeight + 'px'); }
-  window.addEventListener('resize', measure);
+  window.addEventListener('resize', function () { measure(); if (DR.machine) { DR.machine.resize(); if (DR.machine.reduce) DR.machine.draw(); } });
 
   /* ───────── 시작 ───────── */
   setPark(ui.park); calc(); measure(); fromHash();
@@ -1091,4 +1476,5 @@
   setInterval(function () { renderSync(); }, 5000);
   setInterval(tick, 30000);
   setInterval(tickClocks, 1000);
+  setInterval(tickDraw, 1000);
 })();
