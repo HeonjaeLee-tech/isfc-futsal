@@ -10,7 +10,7 @@
   var SHEETS = ['공지', '경기', '득점', '팀', '선수', '기념품', '안주', '뒤풀이', '설정'];
   var FAST = ['공지', '경기', '득점'];
   var SLOW = ['팀', '선수', '기념품', '안주', '뒤풀이', '설정'];
-  var TABS = ['info', 'draw', 'match', 'scorers', 'teams', 'deco', 'wc', 'goods', 'food', 'party'];
+  var TABS = ['info', 'draw', 'match', 'scorers', 'teams', 'deco', 'goods', 'food', 'party'];
   var CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5'];
   var VEST = { 빨강: '#d63a3a', 주황: '#f08a24', 노랑: '#f2c94c', 연두: '#9bd35a', 초록: '#2e8b57', 하늘: '#5bc0eb', 파랑: '#2f6fdb', 남색: '#1f2f6b', 보라: '#7e57c2', 분홍: '#f06fa4', 검정: '#2b2b2b', 흰색: '#f4f4f4', 회색: '#9e9e9e' };
 
@@ -118,11 +118,9 @@
   function build() {
     var settings = {};
     D['설정'].forEach(function (r) { if (r['항목']) settings[r['항목']] = r['값'] || ''; });
-    // 조 추첨: 설정의 조추첨 시각이 지나면 자동으로 팀이 정해지고 공개된다
+    // 조 추첨은 현장에서 진행. 사이트는 명단과 추첨기 그림만 보여 주고, 팀은 선수 시트 + 팀공개로 공개한다
     var drawRoster = drawRosterFrom(settings), dAt = at(drawTimeFrom(settings).start);
-    // 추첨 장면이 도는 동안에는 다른 화면에 결과를 미리 보여 주지 않는다
-    var drawDone = !!(dAt && now() >= dAt && drawRoster.length) && !DR.pending && !(DR.run && DR.run.mode === 'real');
-    var reveal = /^(o|ㅇ|y|yes|공개|true)$/i.test(t(settings['팀공개'])) || drawDone;
+    var reveal = /^(o|ㅇ|y|yes|공개|true)$/i.test(t(settings['팀공개']));
 
     var teams = {};
     D['팀'].forEach(function (r) {
@@ -139,19 +137,8 @@
       tm.img = !!(dc && dc.img);
     });
 
-    var sheetPlayers = D['선수'].filter(function (r) { return t(r['이름']); }).map(function (r) {
+    var players = D['선수'].filter(function (r) { return t(r['이름']); }).map(function (r) {
       return { name: t(r['이름']), year: t(r['학번']).replace(/학번$/, ''), kind: t(r['구분']).toUpperCase(), team: t(r['팀코드']).toUpperCase(), memo: t(r['메모']) };
-    });
-    // 추첨 결과가 기본, 선수 시트에 적은 줄은 그 사람만 덮어쓴다 (추첨 뒤 팀 옮기기, 추가 인원)
-    var players = [];
-    if (drawDone && !DEMO) {
-      var dres = computeDraw(drawRoster);
-      players = drawRoster.map(function (p) { return { name: p.n, year: '', kind: p.kind, team: dres.assign[p.n] || '', memo: '' }; });
-    }
-    sheetPlayers.forEach(function (sp) {
-      var ex = null; players.forEach(function (p) { if (p.name === sp.name) ex = p; });
-      if (!ex) { players.push(sp); return; }
-      if (sp.team) ex.team = sp.team; if (sp.kind) ex.kind = sp.kind; if (sp.year) ex.year = sp.year; if (sp.memo) ex.memo = sp.memo;
     });
     var pBy = {}; players.forEach(function (p) { pBy[p.name] = p; });
 
@@ -251,7 +238,7 @@
 
     var party = {}; D['뒤풀이'].forEach(function (r) { if (r['항목']) party[t(r['항목'])] = t(r['내용']); });
 
-    return { settings: settings, reveal: reveal, drawRoster: drawRoster, drawAt: dAt, drawDone: drawDone, teams: teams, players: players, pBy: pBy, matches: matches, byNo: byNo, S: S, goals: goals, scorers: scorers, notices: notices, goods: D['기념품'], food: D['안주'], party: party };
+    return { settings: settings, reveal: reveal, drawRoster: drawRoster, drawAt: dAt, teams: teams, players: players, pBy: pBy, matches: matches, byNo: byNo, S: S, goals: goals, scorers: scorers, notices: notices, goods: D['기념품'], food: D['안주'], party: party };
   }
 
   /* ───────── 공통 조각 ───────── */
@@ -395,7 +382,7 @@
     var th = first(function (m) { return /3/.test(m.stage) && /4/.test(m.stage); }), fi = first(function (m) { return /결승/.test(m.stage); });
     var dr = drawTime();
     var items = [
-      [dr.start, '조 추첨 (팀 제비뽑기)', dr.label + ' · 시간에 맞춰 와 주시면 감사하겠습니다'],
+      [dr.start, '조 추첨 (팀 제비뽑기)', dr.label + ' · 현장에서 직접 뽑습니다. 13시 이후 도착하시면 임의로 배정됩니다'],
       [g1 && g1.time, '조별리그', 'A조 1구장, B조 2구장 · 팀당 4경기'],
       [k1 && k1.time, '토너먼트', '각 조 1~3위 진출, 조 1위는 4강 직행'],
       [th && th.time, '3·4위전', ''],
@@ -616,7 +603,7 @@
     var s = M.settings;
     $('#rules').innerHTML =
       '<ol class="steps">' +
-        '<li><div><b>팀 정하기</b><p>' + esc(drawTime().label) + ' 현장에서 제비뽑기로 10팀을 정합니다. 추첨이 끝난 뒤에는 팀을 맞춰 드리기가 어려울 수 있어, 번거로우시더라도 시간에 맞춰 와 주시길 부탁드립니다. 뽑는 대로 이 사이트에도 바로 공개합니다.</p></div></li>' +
+        '<li><div><b>팀 정하기</b><p>' + esc(drawTime().label) + ' 풋살장에서 직접 제비뽑기로 10팀을 정합니다. 13시 이후에 도착하시는 분들은 남은 자리에 임의로 배정해 드립니다. 정해지는 대로 이 사이트에도 공개합니다.</p></div></li>' +
         '<li><div><b>조별 풀리그</b><p>A조 5팀, B조 5팀이 같은 조의 모든 팀과 한 번씩, 팀당 4경기를 치릅니다. 경기 시간은 ' + esc(s['조별리그 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>토너먼트</b><p>각 조 1~3위가 진출합니다. 조 1위는 4강에 바로 오르고, 2위와 3위는 상대 조와 엇갈려 4강 진출전을 치릅니다. 경기 시간은 ' + esc(s['토너먼트 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>결승과 3·4위전</b><p>토너먼트에서 비기면 ' + esc(s['토너먼트 무승부'] || '승부차기') + '로 승부를 가립니다.</p></div></li>' +
@@ -662,7 +649,7 @@
       var dr = drawTime(), open = at(dr.start), left = open ? open - now() : 0;
       var cd = '';
       if (left > 0) { var dd = Math.floor(left / 864e5), hh = Math.floor(left % 864e5 / 36e5), mi = Math.floor(left % 36e5 / 6e4); cd = '<div class="cd">' + (dd ? dd + '일 ' : '') + hh + '시간 ' + mi + '분</div><p>조 추첨까지 남은 시간</p>'; }
-      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>' + esc(dr.label) + ' 현장에서 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 추첨이 끝난 뒤에는 팀을 맞춰 드리기가 어려울 수 있어, 번거로우시더라도 시간에 맞춰 와 주시길 부탁드립니다. 정해지는 대로 이곳에 바로 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
+      $('#teams').innerHTML = '<div class="locked">' + icon('lock-simple') + '<h3>팀은 당일 제비뽑기로 정합니다</h3><p>' + esc(dr.label) + ' 풋살장에서 직접 제비뽑기로 10팀을 정해 A조와 B조로 나눕니다. 13시 이후에 도착하시는 분들은 남은 자리에 임의로 배정해 드립니다. 정해지는 대로 이곳에 공개합니다.' + (CFG.DECO_URL ? ' 팀이 정해지면 <a href="#deco" data-tab="deco" style="color:inherit;font-weight:700">팀 꾸미기</a>에서 이름과 엠블럼을 직접 정하실 수 있습니다.' : '') + '</p>' + cd + '</div>';
       return;
     }
     var html = ['A', 'B'].map(function (g) {
@@ -862,17 +849,10 @@
   }
 
   /* ───────── 조 추첨 ─────────
-   * 명단(draw.js) + 설정 시트의 '추첨 제외' / '추첨 추가'로 참가자를 정하고,
-   * 조추첨 시각이 되면 모든 폰이 같은 씨앗값으로 같은 결과를 계산해 보여 준다. */
-  var DD = window.ISFC_DRAW || { names: [], k: {} };
-  var DSALT = 'isfc20·obyb', DSEED = 'ISFC20-OBYB-' + CFG.EVENT_DATE;
-  var DRAWTEST = /[?&]drawtest=1/.test(location.search);
+   * 조 추첨은 현장에서 직접 뽑는다. 사이트는 이름 공이 굴러가는 추첨기 그림과 참가자 명단을 보여 주고,
+   * 운영진이 선수 시트에 팀코드를 넣고 팀공개를 O로 바꾸면 팀별 명단을 보여 준다. */
+  var DD = window.ISFC_DRAW || { names: [] };
   function fnv(s) { var h = 0x811c9dc5; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
-  function seeded(str) {
-    var a = fnv(str) || 1;
-    return function () { a = a + 0x6D2B79F5 | 0; var x = Math.imul(a ^ a >>> 15, 1 | a); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
-  }
-  function shuffled(arr, R) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(R() * (i + 1)), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
   function nameList(s) { return t(s).split(/[\s,，、\/·]+/).map(t).filter(Boolean); }
   function drawRosterFrom(st) {
     var ex = nameList(st['추첨 제외']), add = nameList(st['추첨 추가']), seen = {}, list = [];
@@ -881,42 +861,6 @@
     list.sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : 0; });
     return list;
   }
-  var drawMemo = {};
-  function computeDraw(list, seed) {
-    var key = (seed || DSEED) + '|' + list.map(function (p) { return p.n; }).join(',');
-    if (drawMemo[key]) return drawMemo[key];
-    var R = seeded(key), T = CODES.length, n = list.length;
-    var ps = list.map(function (p) { var v = DD.k[fnv(DSALT + p.n).toString(16)]; if (v == null) v = 30; return { n: p.n, ob: p.kind === 'OB', s: v % 100, g: v >= 100, r: R() }; });
-    ps.sort(function (a, b) { return (b.s - a.s) || (a.r - b.r); });
-    var obAll = 0; ps.forEach(function (p) { if (p.ob) obAll++; });
-    var tm = {}; CODES.forEach(function (c) { tm[c] = { ob: 0, sum: 0, g: 0, x: 0 }; });
-    var assign = {};
-    for (var st = 0; st < n; st += T) {
-      var pot = ps.slice(st, st + T), best = null, bestCost = Infinity, obExp = obAll / n * ((st + pot.length) / T);
-      for (var tr = 0; tr < 500; tr++) {
-        var perm = shuffled(CODES, R), cost = 0, sumA = 0, sumB = 0, xA = 0, xB = 0, mean = 0, k = {};
-        CODES.forEach(function (c) { k[c] = { ob: tm[c].ob, sum: tm[c].sum, g: tm[c].g, x: tm[c].x }; });
-        for (var i = 0; i < pot.length; i++) { var p = pot[i], q = k[perm[i]]; if (p.ob) q.ob++; q.sum += p.s; if (p.g) q.g++; if (p.s >= 70) q.x++; }
-        CODES.forEach(function (c) { mean += k[c].sum; }); mean = mean / T;
-        CODES.forEach(function (c) {
-          var q2 = k[c], d1 = q2.ob - obExp, d2 = (q2.sum - mean) / 10;
-          cost += d1 * d1 * 3 + d2 * d2;
-          if (q2.g > 1) cost += 60 * (q2.g - 1);
-          if (q2.x > 1) cost += 5000;
-          if (c.charAt(0) === 'A') { sumA += q2.sum; xA += q2.x; } else { sumB += q2.sum; xB += q2.x; }
-        });
-        var d3 = (sumA - sumB) / 10; cost += d3 * d3 * 0.4;
-        if (xA > 2 || xB > 2) cost += 5000;
-        if (cost < bestCost) { bestCost = cost; best = perm; }
-      }
-      for (var j = 0; j < pot.length; j++) { var pp = pot[j], c2 = best[j], qq = tm[c2]; assign[pp.n] = c2; if (pp.ob) qq.ob++; qq.sum += pp.s; if (pp.g) qq.g++; if (pp.s >= 70) qq.x++; }
-    }
-    var order = shuffled(list.map(function (p) { return p.n; }), R);
-    var teams = {}; CODES.forEach(function (c) { teams[c] = []; });
-    order.forEach(function (nm) { teams[assign[nm]].push(nm); });
-    return (drawMemo[key] = { assign: assign, order: order, teams: teams, n: n });
-  }
-  function drawRes() { return computeDraw(M.drawRoster); }
 
   /* 추첨기: 이름이 적힌 공이 유리 통 안에서 굴러다닌다 */
   var BALLC = [['#741243', '#ffffff'], ['#A35E88', '#ffffff'], ['#BEE0A9', '#1d2a17'], ['#F2C14E', '#2a2000'], ['#F4EFE6', '#2b2329'], ['#3a2f3e', '#f4efe6']];
@@ -1050,13 +994,15 @@
     mc.raf = requestAnimationFrame(f);
   }
 
-  /* 추첨 화면 상태: DR.run = 진행 중인 추첨(실제/다시 보기/연습), DR.hold = 끝난 연습 결과 */
-  var DR = { run: null, hold: null, machine: null, armed: false, fired: false, primed: false, pending: false, q: '' };
-  function drawView() {
-    if (DR.pending) return { res: drawRes(), filled: {}, mode: 'before' };
-    if (DR.run) return { res: DR.run.res, filled: DR.run.filled, mode: DR.run.mode };
-    if (DR.hold) return { res: DR.hold.res, filled: null, mode: 'practice' };
-    return { res: drawRes(), filled: M.drawDone ? null : {}, mode: M.drawDone ? 'done' : 'before' };
+  /* 추첨 화면 상태: before(12:40 전) / live(12:40~13:00, 현장 추첨 중) / after(그 뒤) / teams(팀 공개됨) */
+  var DR = { machine: null, q: '', phase: '' };
+  function drawPhase() {
+    if (!M) return 'before';
+    var hasTeams = M.reveal && M.players.some(function (p) { return p.team; });
+    if (hasTeams) return 'teams';
+    if (!M.drawAt || !isEventDay()) return 'before';
+    var n = now(), end = at(drawTime().end || '') || (M.drawAt + 20 * 60000);
+    return n < M.drawAt ? 'before' : n < end ? 'live' : 'after';
   }
   function cdText(left) {
     if (left <= 0) return '곧 시작합니다';
@@ -1074,8 +1020,7 @@
         '<div class="dm">' +
           '<div class="dm-top"><span class="dm-kicker">' + icon('sparkle-fill') + 'ISFC 20th · OBYB</span><span class="dm-status" id="dmStatus"></span></div>' +
           '<div class="dm-stage"><canvas id="dmCanvas" aria-hidden="true"></canvas><div class="dm-center" id="dmCenter"></div></div>' +
-          '<div class="dm-call" id="dmCall" aria-live="polite"></div>' +
-          '<div class="dm-ctrl" id="dmCtrl"></div>' +
+          '<div class="dm-call" id="dmCall"></div>' +
         '</div>' +
         '<div class="dt" id="dtTeams"></div>' +
         '<section class="dr" aria-labelledby="drTitle">' +
@@ -1085,142 +1030,71 @@
         '</section>';
       DR.machine = new Machine($('#dmCanvas'));
     }
-    var v = drawView();
-    var names = list.map(function (p) { return p.n; });
-    if (v.mode === 'done' || v.mode === 'practice' && !DR.run) names = [];
-    else if (DR.run) names = names.filter(function (n) { return !DR.run.filled[n]; });
-    DR.machine.sync(names);
-    DR.machine.m = DR.run && DR.run.i < DR.run.res.n ? 'mix' : 'idle';
-    updateDrawHead(v); renderDrawTeams(v); renderDrawRoster(v);
+    var ph = drawPhase(); DR.phase = ph;
+    DR.machine.sync(list.map(function (p) { return p.n; }));
+    DR.machine.m = ph === 'live' ? 'mix' : 'idle';
+    updateDrawHead(ph); renderDrawTeams(ph); renderDrawRoster(ph);
     drawLoop();
   }
-  function updateDrawHead(v) {
-    var st = $('#dmStatus'), ce = $('#dmCenter'), call = $('#dmCall'), ctrl = $('#dmCtrl'); if (!st) return;
-    var n = v.res.n, btns = [];
-    if (DR.run) {
-      var lbl = DR.run.mode === 'practice' ? '연습 추첨 중' : DR.run.mode === 'replay' ? '다시 보기' : '추첨 중';
-      st.innerHTML = '<i class="dot live"></i>' + lbl + ' · <b>' + DR.run.i + '</b> / ' + n;
-      ce.className = 'dm-center' + (DR.run.i ? ' hide' : ''); ce.innerHTML = '<span class="dm-big">추첨을 시작합니다</span>';
-    } else if (v.mode === 'practice') {
-      st.innerHTML = '<i class="dot"></i>연습 결과 · 실제 결과가 아닙니다';
-      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-big">연습 끝</span><span class="dm-sub">실제 추첨은 ' + esc(drawTime().start) + '에 진행됩니다</span>';
-      call.innerHTML = '';
-    } else if (v.mode === 'done') {
-      st.innerHTML = '<i class="dot ok"></i>추첨 완료';
-      ce.className = 'dm-center done'; ce.innerHTML = icon('check') + '<span class="dm-big">추첨 완료</span><span class="dm-sub">' + n + '명 · 10팀</span>';
-      call.innerHTML = '';
-      btns.push('<button type="button" class="btn btn-ghost sm" data-draw-act="replay">' + icon('arrow-clockwise') + '추첨 장면 다시 보기</button>');
+  function updateDrawHead(ph) {
+    var st = $('#dmStatus'), ce = $('#dmCenter'), call = $('#dmCall'); if (!st) return;
+    var dt = drawTime(), late = '13시 이후에 도착하시는 분들은 남은 자리에 임의로 배정해 드립니다';
+    if (ph === 'teams') {
+      st.innerHTML = '<i class="dot ok"></i>팀 배정 완료';
+      ce.className = 'dm-center done'; ce.innerHTML = icon('check') + '<span class="dm-big">팀 배정 완료</span><span class="dm-sub">아래에서 팀별 명단을 확인해 주십시오</span>';
+      call.innerHTML = '<span class="dm-hint">' + late + '</span>';
+    } else if (ph === 'live') {
+      st.innerHTML = '<i class="dot live"></i>조 추첨 진행 중';
+      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-big">조 추첨 진행 중</span><span class="dm-sub">현장에서 직접 뽑고 있습니다</span>';
+      call.innerHTML = '<span class="dm-hint">' + late + '</span>';
+    } else if (ph === 'after') {
+      st.innerHTML = '<i class="dot"></i>조 추첨 마감';
+      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-big">조 추첨 마감</span><span class="dm-sub">팀 명단은 곧 이곳에 올라옵니다</span>';
+      call.innerHTML = '<span class="dm-hint">' + late + '</span>';
     } else {
-      st.innerHTML = '<i class="dot"></i>추첨 전';
-      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-time">' + esc(drawTime().start) + '</span><span class="dm-sub">자동 추첨</span><span class="dm-cd" id="dmCd">' + cdText(M.drawAt - now()) + '</span>';
-      call.innerHTML = '<span class="dm-hint">시간이 되면 이 화면에서 공이 하나씩 뽑혀 팀이 정해집니다</span>';
+      st.innerHTML = '<i class="dot"></i>조 추첨 전';
+      ce.className = 'dm-center'; ce.innerHTML = '<span class="dm-time">' + esc(dt.start) + '</span><span class="dm-sub">현장 조 추첨</span><span class="dm-cd" id="dmCd">' + cdText(M.drawAt - now()) + '</span>';
+      call.innerHTML = '<span class="dm-hint">' + esc(dt.label) + ' 풋살장에서 직접 조 추첨을 진행합니다.<br>' + late + '</span>';
     }
-    if (DRAWTEST && !DR.run) {
-      btns.push('<button type="button" class="btn btn-ghost sm" data-draw-act="practice">' + icon('shuffle') + '연습 추첨 돌려 보기</button>');
-      if (DR.hold) btns.push('<button type="button" class="link-btn" data-draw-act="clear">연습 결과 지우기</button>');
-    }
-    ctrl.innerHTML = btns.join(''); ctrl.hidden = !btns.length;
   }
-  function renderDrawTeams(v) {
+  function renderDrawTeams(ph) {
     var el = $('#dtTeams'); if (!el) return;
-    var res = v.res, f = v.filled, real = v.mode === 'done';
+    if (ph !== 'teams') { el.innerHTML = ''; el.hidden = true; return; }
+    el.hidden = false;
     el.innerHTML = ['A', 'B'].map(function (g) {
       return '<div class="dt-group"><h3 class="group-title">' + g + '조</h3><div class="dt-grid">' + [1, 2, 3, 4, 5].map(function (i) {
-        var c = g + i, mem = res.teams[c] || [], shown = f === null ? mem.length : mem.filter(function (nm) { return f[nm]; }).length;
-        return '<article class="dt-team' + (real && ui.mine === c ? ' is-mine' : '') + (shown ? '' : ' empty') + '" data-team="' + c + '">' +
-          '<header>' + badge(c) + '<b>' + esc(M.teams[c].name) + '</b><span class="dt-cnt">' + shown + '/' + mem.length + '</span></header>' +
-          '<ol>' + mem.map(function (nm, j) { return j < shown ? '<li class="on">' + esc(nm) + '</li>' : '<li></li>'; }).join('') + '</ol></article>';
+        var c = g + i, mem = M.players.filter(function (p) { return p.team === c; });
+        return '<article class="dt-team' + (ui.mine === c ? ' is-mine' : '') + '" data-team="' + c + '">' +
+          '<header>' + badge(c) + '<b>' + esc(M.teams[c].name) + '</b><span class="dt-cnt">' + mem.length + '명</span></header>' +
+          '<ol>' + (mem.length ? mem.map(function (p) { return '<li class="on">' + esc(p.name) + '</li>'; }).join('') : '<li></li>') + '</ol></article>';
       }).join('') + '</div></div>';
     }).join('');
   }
-  function renderDrawRoster(v) {
+  function renderDrawRoster(ph) {
     var el = $('#drList'); if (!el) return;
-    var list = M.drawRoster, res = v.res, f = v.filled, q = DR.q, real = v.mode === 'done';
+    var list = M.drawRoster, q = DR.q, teams = ph === 'teams';
     $('#drCount').textContent = list.length;
     el.innerHTML = list.map(function (p) {
-      var c = f === null || (f && f[p.n]) ? res.assign[p.n] : '';
-      return '<button type="button" class="dr-chip' + (c ? ' has' : '') + (real && c && c === ui.mine ? ' mine' : '') + '" data-pick-name="' + esc(p.n) + '"' + (q && p.n.indexOf(q) < 0 ? ' hidden' : '') + '>' +
+      var pl = teams ? M.pBy[p.n] : null, c = pl && pl.team ? pl.team : '';
+      return '<button type="button" class="dr-chip' + (c ? ' has' : '') + (c && c === ui.mine ? ' mine' : '') + '" data-pick-name="' + esc(p.n) + '"' + (q && p.n.indexOf(q) < 0 ? ' hidden' : '') + '>' +
         esc(p.n) + (c ? '<span>' + c + '</span>' : '') + '</button>';
     }).join('');
-    $('#drNote').textContent = real ? '내 이름을 누르시면 내 팀으로 설정되어, 경기 일정에서 내 팀 경기만 모아 보실 수 있습니다.'
-      : '추첨이 끝나면 내 이름을 눌러 내 팀을 바로 확인하실 수 있습니다.';
-  }
-  function startDraw(mode, seed) {
-    if (DR.run || !M.drawRoster.length) return;
-    var res = seed ? computeDraw(M.drawRoster, seed) : drawRes();
-    DR.hold = null;
-    DR.run = { mode: mode, res: res, i: 0, filled: {}, timer: 0 };
-    DR.pending = false;
-    renderDraw();
-    if (DR.machine) DR.machine.m = 'mix';
-    DR.run.timer = setTimeout(drawStep, 1800);
-  }
-  function drawStep() {
-    var r = DR.run; if (!r) return;
-    var res = r.res;
-    if (r.i >= res.order.length) { finishDraw(); return; }
-    var nm = res.order[r.i], c = res.assign[nm], idx = res.teams[c].indexOf(nm);
-    r.filled[nm] = c; r.i++;
-    if (DR.machine) { DR.machine.pick(nm); if (DR.machine.reduce) { DR.machine.outs = []; DR.machine.draw(); } }
-    var card = document.querySelector('.dt-team[data-team="' + c + '"]');
-    if (card) {
-      var li = card.querySelectorAll('ol li')[idx]; if (li) { li.textContent = nm; li.className = 'on pop'; }
-      var cnt = card.querySelector('.dt-cnt'); if (cnt) cnt.textContent = (idx + 1) + '/' + res.teams[c].length;
-      card.classList.remove('empty', 'flash'); void card.offsetWidth; card.classList.add('flash');
-    }
-    $$('.dr-chip').forEach(function (b) { if (b.dataset.pickName === nm) { b.classList.add('has', 'pop'); b.insertAdjacentHTML('beforeend', '<span>' + c + '</span>'); } });
-    var call = $('#dmCall');
-    if (call) { call.innerHTML = '<span class="dm-call-in">' + badge(c) + '<em>' + esc(M.teams[c].name) + '</em><b>' + esc(nm) + '</b></span>'; }
-    updateDrawHead(drawView());
-    r.timer = setTimeout(drawStep, r.i < 3 ? 850 : r.i < 8 ? 420 : 170);
-  }
-  function finishDraw() {
-    var r = DR.run; if (!r) return;
-    DR.run = null;
-    if (r.mode === 'practice') DR.hold = { res: r.res };
-    if (DR.machine) { DR.machine.m = 'idle'; DR.machine.burst(); }
-    if (r.mode === 'real') { renderAll(); toast(icon('sparkle-fill') + '<span>조 추첨이 끝났습니다! 명단에서 내 이름을 눌러 보세요</span>'); }
-    else renderDraw();
+    $('#drNote').textContent = teams ? '내 이름을 누르시면 내 팀으로 설정되어, 경기 일정에서 내 팀 경기만 모아 보실 수 있습니다.'
+      : '팀이 정해지면 이곳에 팀이 표시되고, 내 이름을 눌러 내 팀으로 설정하실 수 있습니다.';
   }
   function tickDraw() {
-    if (!M || !M.drawAt || !M.drawRoster.length) return;
-    var left = M.drawAt - now(), cd = $('#dmCd');
-    if (cd) cd.textContent = cdText(left);
-    if (left > 0) {
-      DR.armed = true;
-      if (left < 30000 && !DR.primed) { DR.primed = true; if (!DEMO) load(SLOW); }
-      return;
-    }
-    if (!DR.armed || DR.fired) return;
-    DR.fired = true; DR.pending = true;
-    var go = function () {
-      if (DR.go) return; DR.go = true;
-      if (document.hidden) { DR.pending = false; renderAll(); return; }   // 화면을 안 보고 있으면 결과만
-      if (ui.tab !== 'draw') { showTab('draw'); try { history.replaceState(null, '', '#draw'); } catch (x) { /* 무시 */ } }
-      if (DR.run) { clearTimeout(DR.run.timer); DR.run = null; }
-      startDraw('real');
-    };
-    if (DEMO) go(); else { load(['설정']).then(go, go); setTimeout(go, 4000); }
+    if (!M || !M.drawRoster.length) return;
+    var cd = $('#dmCd'); if (cd && M.drawAt) cd.textContent = cdText(M.drawAt - now());
+    if (drawPhase() !== DR.phase) renderDraw();
   }
   function pickMyName(nm) {
-    if (!M.drawDone || DR.run || DR.hold) return;
-    var c = drawRes().assign[nm]; if (!c) return;
-    var pl = M.pBy[nm]; if (pl && pl.team) c = pl.team;
+    var pl = M.pBy[nm]; if (!M.reveal || !pl || !pl.team) return;
+    var c = pl.team;
     ui.mine = c; store.set('mine', c);
     renderFilters(); renderSchedule(); renderStandings(); renderTeams(); renderDraw();
     toast(icon('star-fill') + '<span>' + esc(nm) + ' 님은 <b>' + esc(M.teams[c].name) + '</b>입니다. 내 팀으로 설정했습니다</span>');
     var card = document.querySelector('.dt-team[data-team="' + c + '"]');
     if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
-  }
-
-  /* ───────── 화장실 ───────── */
-  function renderWc() {
-    var el = $('#wc'); if (!el) return;
-    var s = M.settings, loc = t(s['화장실 위치']), key = t(s['화장실 키']) || '천막 상황 테이블', note = t(s['화장실 안내']);
-    el.innerHTML =
-      '<div class="wc-card wc-key">' + icon('key-fill') + '<div><b>화장실 건물 출입키는 ' + esc(key) + '에 있습니다</b><p>필요하실 때 가져가시고, 쓰신 뒤에는 다시 그 자리에 갖다 놓아 주십시오.</p></div></div>' +
-      '<div class="wc-card">' + icon('toilet') + '<div><b>화장실 위치</b><p>' + (loc ? esc(loc) : '위치 안내는 추후 업데이트할 예정입니다.') + '</p></div></div>' +
-      (note ? '<p class="quote">' + esc(note) + '</p>' : '');
   }
 
   /* ───────── 기념품 ───────── */
@@ -1283,7 +1157,7 @@
     M = build();
     renderTicker(); renderNotices(); renderHero(); renderFlow();
     renderBoard(); renderFilters(); renderSchedule(); renderStandings(); renderBracket(); renderRules();
-    renderScorers(); renderTeams(); renderDeco(false); renderDraw(); renderWc(); renderGoods(); renderFood(); renderParty();
+    renderScorers(); renderTeams(); renderDeco(false); renderDraw(); renderGoods(); renderFood(); renderParty();
     tickClocks();
   }
   function tick() { // 1분 단위로 바뀌는 것들 (남은 시간, 흐름)
@@ -1420,8 +1294,6 @@
       return;
     }
     if (e.target.closest('#sync')) { refreshNow(); return; }
-    var da = e.target.closest('[data-draw-act]');
-    if (da) { var act = da.dataset.drawAct; if (act === 'replay') startDraw('replay'); else if (act === 'practice') startDraw('practice', 'practice-' + Date.now()); else if (act === 'clear') { DR.hold = null; renderDraw(); } return; }
     var pn = e.target.closest('[data-pick-name]'); if (pn) { pickMyName(pn.dataset.pickName); return; }
     var ft = e.target.closest('[data-fit]');
     if (ft && dz.src) { dz.fit = ft.dataset.fit; try { dz.img = squarePhoto(dz.src, dz.fit); } catch (x) { /* 무시 */ } updateDeco(); return; }
@@ -1445,7 +1317,7 @@
   document.addEventListener('input', function (e) {
     if (e.target.id === 'calcIn' || e.target.id === 'calcOut') calc();
     if (e.target.id === 'decoName') { dz.name = e.target.value; if (dz.kind === 'ok') decoMsg('', ''); updateDeco(); }
-    if (e.target.id === 'drSearch') { DR.q = t(e.target.value); if (M) renderDrawRoster(drawView()); }
+    if (e.target.id === 'drSearch') { DR.q = t(e.target.value); if (M) renderDrawRoster(DR.phase || drawPhase()); }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeOverlays(); });
   window.addEventListener('hashchange', fromHash);
