@@ -391,7 +391,7 @@
     var items = [
       [dr.start, '조 추첨 (팀 제비뽑기)', dr.label + ' · 현장에서 직접 뽑습니다. 13시 이후 도착하시면 임의로 배정됩니다'],
       [g1 && g1.time, '조별리그', 'A조(1~4조)·B조(5~8조)가 20분마다 번갈아, 두 구장 동시 · 팀당 3경기'],
-      [k1 && k1.time, '4강', '각 조 1·2위 진출 · 조 3·4위는 친선전'],
+      [k1 && k1.time, '토너먼트', '각 조 1~3위 진출 · 조 1위는 4강 직행, 2·3위는 상대 조와 4강 진출전'],
       [fr1 && fr1.time, '친선전', '조 3·4위 팀이 상대 조와 한 경기 더'],
       [th && th.time, '3·4위전', ''],
       [fi && fi.time, '결승', fi && fi.memo ? fi.memo : ''],
@@ -557,14 +557,14 @@
     $('#standings').innerHTML = ['A', 'B'].map(function (g) {
       var st = M.S[g];
       var rows = st.list.map(function (r, i) {
-        var cls = i < 2 ? 'r1' : 'r0';
+        var cls = i === 0 ? 'r1' : i < 3 ? 'r2' : 'r0';
         return '<tr' + (r.code === ui.mine ? ' style="background:var(--brand-soft)"' : '') + '><td><span class="rank ' + cls + '">' + (i + 1) + '</span></td>' +
           '<td><div class="tcell">' + badge(r.code, 'sm') + '<span class="nm">' + esc(M.teams[r.code].name) + '</span></div></td>' +
           '<td>' + r.p + '</td><td>' + r.w + '</td><td>' + r.d + '</td><td>' + r.l + '</td><td>' + (r.gd > 0 ? '+' : '') + r.gd + '</td><td class="pts">' + r.pts + '</td></tr>';
       }).join('');
       return '<h3 class="group-title">' + g + '조<small>' + st.played + ' / ' + st.total + ' 경기 종료' + (st.complete ? ' · 순위 확정' : '') + '</small></h3>' +
         '<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">순위</th><th scope="col">팀</th><th scope="col">경기</th><th scope="col">승</th><th scope="col">무</th><th scope="col">패</th><th scope="col">득실</th><th scope="col">승점</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-    }).join('') + '<div class="tbl-legend"><span><i class="rank r1"></i>4강 진출</span><span>승점 같으면 골득실 → 다득점 → 승자승</span></div>';
+    }).join('') + '<div class="tbl-legend"><span><i class="rank r1"></i>4강 직행</span><span><i class="rank r2"></i>4강 진출전</span><span>승점 같으면 골득실 → 다득점 → 승자승</span></div>';
   }
 
   /* ───────── 경기: 대진표 ───────── */
@@ -600,7 +600,7 @@
         '<div class="vb-two">' + bm(sf[0]) + bm(sf[1]) + '</div>' +
         (r1.length ? '<div class="vb-legs"><i class="' + on(r1[0]) + '"></i><i class="' + on(r1[1]) + '"></i></div>' +
           '<div class="vb-lab"><span>4강 진출전</span></div>' + '<div class="vb-two">' + bm(r1[0]) + bm(r1[1]) + '</div>' : '') +
-        '<p class="vb-note">' + icon('arrow-right') + '아래에서 위로 올라갑니다. 4강은 각 조 1위와 상대 조 2위가 맞붙습니다.</p>' +
+        '<p class="vb-note">' + icon('arrow-right') + '아래에서 위로 올라갑니다. 각 조 1위는 4강에서 기다립니다.</p>' +
       '</div>' +
       '<div class="third"><div class="br-head">3·4위전</div>' + bm(th) + '</div>' +
       (fr.length ? '<div class="third fr"><div class="br-head">친선전</div><div class="fr-list">' + fr.map(function (m) { return bm(m); }).join('') + '</div></div>' : '') +
@@ -614,7 +614,7 @@
       '<ol class="steps">' +
         '<li><div><b>팀 정하기</b><p>' + esc(drawTime().label) + ' 풋살장에서 직접 제비뽑기로 8팀을 정합니다. 13시 이후에 도착하시는 분들은 남은 자리에 임의로 배정해 드립니다. 정해지는 대로 이 사이트에도 공개합니다.</p></div></li>' +
         '<li><div><b>조별 풀리그</b><p>A조(1~4조)와 B조(5~8조)가 같은 조의 모든 팀과 한 번씩, 팀당 3경기를 치릅니다. 두 조가 20분마다 번갈아 뛰어 경기 사이에 충분히 쉬실 수 있습니다. 경기 시간은 ' + esc(s['조별리그 경기시간'] || '12분') + '입니다.</p></div></li>' +
-        '<li><div><b>4강</b><p>각 조 1·2위가 4강에 오릅니다. A조 1위와 B조 2위, B조 1위와 A조 2위가 맞붙습니다. 조 3·4위 팀은 상대 조와 친선전을 한 경기 더 치릅니다. 경기 시간은 ' + esc(s['토너먼트 경기시간'] || '12분') + '입니다.</p></div></li>' +
+        '<li><div><b>토너먼트</b><p>각 조 1~3위가 진출합니다. 조 1위는 4강에 바로 오르고, 2위와 3위는 상대 조와 엇갈려 4강 진출전을 치릅니다 (A조 2위 vs B조 3위, B조 2위 vs A조 3위). 경기 시간은 ' + esc(s['토너먼트 경기시간'] || '12분') + '입니다.</p></div></li>' +
         '<li><div><b>결승과 3·4위전</b><p>토너먼트에서 비기면 ' + esc(s['토너먼트 무승부'] || '승부차기') + '로 승부를 가립니다.</p></div></li>' +
       '</ol>' +
       '<h3 class="h3">조 순위 정하는 방법</h3>' +
