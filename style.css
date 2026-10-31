@@ -1042,3 +1042,7 @@ b, strong { font-weight: 700; }
 .wc-key { background: var(--board); color: var(--board-ink); }
 .wc-key > .i { color: var(--gold); }
 .wc-key p { color: var(--board-muted); }
+
+.third.fr { align-items: start; }
+.fr-list { display: grid; gap: 8px; max-width: 260px; }
+.fr-list .bm { max-width: none; }
