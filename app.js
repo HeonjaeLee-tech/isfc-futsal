@@ -30,7 +30,11 @@
 
   /* 시간: 모든 경기 시각은 행사 날짜의 한국 시간 기준 */
   function now() { return DEMO && CFG.DEMO_NOW ? Date.parse(CFG.DEMO_NOW) + (Date.now() - BOOT) : Date.now(); }
-  function hhmm(s) { var m = t(s).match(/(\d{1,2})\s*:\s*(\d{2})/); return m ? (m[1].length === 1 ? '0' + m[1] : m[1]) + ':' + m[2] : null; }
+  function hhmm(s) { // '13:00', '13:00:00', '오후 1:00:00' 모두 13:00으로
+    var x = t(s), m = x.match(/(\d{1,2})\s*:\s*(\d{2})/); if (!m) return null;
+    var h = +m[1]; if (/오후|pm/i.test(x) && h < 12) h += 12; if (/오전|am/i.test(x) && h === 12) h = 0;
+    return (h < 10 ? '0' : '') + h + ':' + m[2];
+  }
   function at(s) { var h = hhmm(s); return h ? Date.parse(CFG.EVENT_DATE + 'T' + h + ':00+09:00') : null; }
   function kstDate(ms) { return new Date(ms + 9 * 3600e3).toISOString().slice(0, 10); }
   function isEventDay() { return kstDate(now()) === CFG.EVENT_DATE; }
