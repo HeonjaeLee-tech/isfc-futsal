@@ -153,7 +153,10 @@
       return {
         no: num(r['번호']), stage: t(r['단계']), time: hhmm(r['시작']) || t(r['시작']), court: t(r['구장']),
         homeRef: t(r['홈']), awayRef: t(r['원정']), hg: num(r['홈골']), ag: num(r['원정골']),
-        pk: (function (v) { var m = t(v).match(/(\d+)\s*[-:]\s*(\d+)/); return m ? [+m[1], +m[2]] : null; })(r['승부차기']),
+        pk: (function (v) { // '4-3'(홈-원정) 또는 점수 없이 '홈승' / '원정승'
+          var s = t(v), m = s.match(/(\d+)\s*[-:]\s*(\d+)/); if (m) return [+m[1], +m[2]];
+          var w = /원정/.test(s) ? [0, 1] : /홈/.test(s) ? [1, 0] : null; if (w) w.noScore = true; return w;
+        })(r['승부차기']),
         status: /진행|live|라이브/i.test(st) ? 'live' : /종료|끝|완료|done/i.test(st) ? 'done' : 'sched',
         memo: t(r['메모'])
       };
@@ -488,7 +491,7 @@
   function matchRow(m) {
     var hw = m.win && m.win === m.home.code, aw = m.win && m.win === m.away.code;
     var score = m.status === 'sched' ? '<div class="m-score vs">' + esc(m.time || 'vs') + '</div>'
-      : '<div class="m-score">' + (m.hg == null ? 0 : m.hg) + ' : ' + (m.ag == null ? 0 : m.ag) + (m.pk ? '<span class="m-pk">승부차기 ' + m.pk[0] + '-' + m.pk[1] + '</span>' : '') + '</div>';
+      : '<div class="m-score">' + (m.hg == null ? 0 : m.hg) + ' : ' + (m.ag == null ? 0 : m.ag) + (m.pk ? '<span class="m-pk">승부차기 ' + (m.pk.noScore ? '승' : m.pk[0] + '-' + m.pk[1]) + '</span>' : '') + '</div>';
     var hint = function (r) { return !r.code && r.hint ? '<small class="muted" style="font-weight:500"> 현재 ' + esc(r.hint) + '</small>' : ''; };
     return '<div class="m' + (m.status === 'live' ? ' is-live' : '') + (involves(m, ui.mine) ? ' is-mine' : '') + '">' +
       '<div class="m-meta"><span>#' + m.no + '</span><span>' + esc(m.court) + '</span>' + stageChip(m) + statusChip(m) + '</div>' +
@@ -574,7 +577,7 @@
       var lose = m.win && !win;
       return '<div class="bm-t' + (ref.code ? '' : ' tbd') + (lose ? ' lose' : '') + '">' + badge(ref.code, 'sm') + '<span class="nm">' + side(ref) + '</span><b>' + (m.status === 'sched' || g == null ? '' : g) + '</b></div>';
     }
-    return '<div class="bm ' + (cls || '') + (m.status === 'live' ? ' is-live' : '') + '"><div class="bm-no"><span>#' + m.no + ' · ' + esc(m.time) + '</span><span>' + (m.status === 'live' ? 'LIVE' : m.status === 'done' ? (m.pk ? 'PK ' + m.pk[0] + '-' + m.pk[1] : '종료') : esc(m.court)) + '</span></div>' +
+    return '<div class="bm ' + (cls || '') + (m.status === 'live' ? ' is-live' : '') + '"><div class="bm-no"><span>#' + m.no + ' · ' + esc(m.time) + '</span><span>' + (m.status === 'live' ? 'LIVE' : m.status === 'done' ? (m.pk ? (m.pk.noScore ? 'PK 승부' : 'PK ' + m.pk[0] + '-' + m.pk[1]) : '종료') : esc(m.court)) + '</span></div>' +
       line(m.home, m.hg, m.win && m.win === m.home.code) + line(m.away, m.ag, m.win && m.win === m.away.code) + '</div>';
   }
   function renderBracket() {
